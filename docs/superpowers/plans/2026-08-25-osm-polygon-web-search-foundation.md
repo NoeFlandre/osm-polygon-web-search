@@ -110,8 +110,9 @@ quote-style = "double"
 python-version = "3.11"
 
 [tool.mutmut]
-paths_to_mutate = ["src/osm_polygon_web_search/"]
+source_paths = ["src/osm_polygon_web_search/"]
 pytest_add_cli_args = ["-q"]
+pytest_add_cli_args_test_selection = ["--ignore=tests/test_repository_contracts.py"]
 ```
 
 - [ ] **Step 2: Add ignore rules that cannot reach the Seagate data root**
@@ -433,7 +434,10 @@ Add these tests before creating the workflow files:
 def test_dockerfile_runs_the_module_smoke_command() -> None:
     text = (ROOT / "Dockerfile").read_text()
     assert "uv sync --frozen --no-dev" in text
-    assert 'CMD ["uv", "run", "--no-dev", "python", "-m", "osm_polygon_web_search"]' in text
+    assert (
+        'CMD ["uv", "run", "--no-dev", "python", "-m", "osm_polygon_web_search"]'
+        in text
+    )
 
 
 def test_ci_workflow_runs_the_complete_quality_surface() -> None:
@@ -539,8 +543,8 @@ Expected: strict build succeeds and the landing page is non-empty. The generated
 Run:
 
 ```sh
-uv run mutmut run --paths-to-mutate src/osm_polygon_web_search/
-uv run mutmut results
+uv run mutmut run
+test -z "$(uv run mutmut results)"
 ```
 
 Expected: the run completes for the entire package with zero surviving or unresolved mutants. If the installed mutmut version uses a different configuration entry point, inspect `uv run mutmut run --help`, make the smallest configuration correction, and rerun from a clean mutation state; do not report a partial run as passing.

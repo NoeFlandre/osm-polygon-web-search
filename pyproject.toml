@@ -58,5 +58,6 @@ quote-style = "double"
 python-version = "3.11"
 
 [tool.mutmut]
-paths_to_mutate = ["src/osm_polygon_web_search/"]
+source_paths = ["src/osm_polygon_web_search/"]
 pytest_add_cli_args = ["-q"]
+pytest_add_cli_args_test_selection = ["--ignore=tests/test_repository_contracts.py"]

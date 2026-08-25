@@ -24,8 +24,8 @@ Face repository contains only its dataset card and license.
     uv run ruff check .
     uv run ty check
     uv run mkdocs build --strict --site-dir /tmp/osm-polygon-web-search-site
-    uv run mutmut run --paths-to-mutate src/osm_polygon_web_search/
-    uv run mutmut results
+    uv run mutmut run
+    test -z "$$(uv run mutmut results)"
     docker build -t osm-polygon-web-search:local .
 
 ## Further reading

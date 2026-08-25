@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).parents[1]
 
 
@@ -38,8 +37,7 @@ def test_dockerfile_runs_the_module_smoke_command() -> None:
     text = (ROOT / "Dockerfile").read_text()
     assert "uv sync --frozen --no-dev" in text
     assert (
-        'CMD ["uv", "run", "--no-dev", "python", "-m", '
-        '"osm_polygon_web_search"]'
+        'CMD ["uv", "run", "--no-dev", "python", "-m", "osm_polygon_web_search"]'
     ) in text
 
 

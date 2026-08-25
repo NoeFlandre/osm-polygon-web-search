@@ -16,8 +16,8 @@ docs:
     uv run mkdocs build --strict --site-dir /tmp/osm-polygon-web-search-site
 
 mutation:
-    uv run mutmut run --paths-to-mutate src/osm_polygon_web_search/
-    uv run mutmut results
+    uv run mutmut run
+    test -z "$$(uv run mutmut results)"
 
 docker:
     docker build -t osm-polygon-web-search:local .
