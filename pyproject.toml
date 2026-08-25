@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "osm-polygon-web-search"
+version = "0.1.0"
+description = "A Seagate-only foundation for OSM polygon web-search data work."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [{ name = "Noe Flandre" }]
+dependencies = []
+
+[project.scripts]
+osm-polygon-web-search = "osm_polygon_web_search.__main__:main"
+
+[dependency-groups]
+dev = [
+  "mkdocs-material>=9.6.0",
+  "mutmut>=3.3.0",
+  "pre-commit>=4.1.0",
+  "pytest>=8.3.0",
+  "pytest-cov>=6.0.0",
+  "ruff>=0.15.0",
+  "ty>=0.0.1",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/osm_polygon_web_search"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-config", "--strict-markers"]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["osm_polygon_web_search"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["B", "C4", "E", "F", "I", "SIM", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ty.environment]
+python-version = "3.11"
+
+[tool.mutmut]
+paths_to_mutate = ["src/osm_polygon_web_search/"]
+pytest_add_cli_args = ["-q"]
