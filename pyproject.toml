@@ -10,7 +10,10 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Noe Flandre" }]
-dependencies = []
+dependencies = [
+  "osmium>=4.3.1",
+  "trafilatura>=2.0.0",
+]
 
 [project.scripts]
 osm-polygon-web-search = "osm_polygon_web_search.__main__:main"
@@ -59,5 +62,14 @@ python-version = "3.11"
 
 [tool.mutmut]
 source_paths = ["src/osm_polygon_web_search/"]
+only_mutate = [
+  "src/osm_polygon_web_search/names.py",
+  "src/osm_polygon_web_search/candidates.py",
+  "src/osm_polygon_web_search/country.py",
+  "src/osm_polygon_web_search/queries.py",
+  "src/osm_polygon_web_search/pbf.py",
+  "src/osm_polygon_web_search/relevance.py",
+]
 pytest_add_cli_args = ["-q"]
 pytest_add_cli_args_test_selection = ["--ignore=tests/test_repository_contracts.py"]
+on_dependency_change = "rerun"

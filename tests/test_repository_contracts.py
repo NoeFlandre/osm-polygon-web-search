@@ -33,6 +33,27 @@ def test_public_docs_state_the_seagate_only_policy() -> None:
     assert "never uploaded" in text
 
 
+def test_public_docs_describe_the_approved_pbf_search_poc() -> None:
+    combined = "\n".join(
+        (ROOT / relative).read_text()
+        for relative in (
+            "README.md",
+            "docs/index.md",
+            "docs/getting-started.md",
+            "docs/data-layout.md",
+            "dataset/README.md",
+        )
+    )
+    for required in (
+        "PBF-first",
+        "Liechtenstein",
+        "Trafilatura",
+        "BRAVE_SEARCH_API_KEY",
+        "raw web content is not published",
+    ):
+        assert required in combined
+
+
 def test_dockerfile_runs_the_module_smoke_command() -> None:
     text = (ROOT / "Dockerfile").read_text()
     assert "uv sync --frozen --no-dev" in text

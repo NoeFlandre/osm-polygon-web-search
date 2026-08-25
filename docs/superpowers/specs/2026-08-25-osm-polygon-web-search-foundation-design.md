@@ -3,6 +3,11 @@
 **Date:** 2026-08-25  
 **Status:** Approved for implementation planning
 
+> Historical foundation specification. The approved PBF-first proof of
+> concept now extends this foundation; see the current
+> [architecture](../../architecture.md) and
+> [implementation plan](../plans/2026-08-25-pbf-web-search-poc.md).
+
 ## Goal
 
 Create a public, Apache-2.0-licensed GitHub repository and a public, Apache-2.0-licensed Hugging Face dataset repository, both named `osm-polygon-web-search`, with a minimal local Python foundation and reproducible quality gates. The initial Hugging Face repository is metadata-only. All local and derived data remains under:

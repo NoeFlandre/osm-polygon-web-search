@@ -17,7 +17,7 @@ docs:
 
 mutation:
     uv run mutmut run
-    test -z "$$(uv run mutmut results)"
+    ! uv run mutmut results | rg -q .
 
 docker:
     docker build -t osm-polygon-web-search:local .

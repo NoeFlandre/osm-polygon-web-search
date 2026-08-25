@@ -43,7 +43,7 @@ jobs:
         run: uv run mutmut run
 
       - name: Check mutation results
-        run: test -z "$(uv run mutmut results)"
+        run: '! uv run mutmut results | rg -q .'
 
       - name: Build Docker image
         run: docker build -t osm-polygon-web-search:ci .

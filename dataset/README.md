@@ -15,5 +15,7 @@ No data files are published. All local and derived data stays under:
     /Volumes/Seagate M3/projects/osm-polygon-web-search
 
 The initial publication contains this dataset card and the Apache-2.0 license
-text only. No local data is uploaded to Hugging Face. Future data publication
-is outside the scope of this foundation and requires a separate approval.
+text only. No local PBF, raw HTML, search response, or raw web content is
+uploaded to Hugging Face. Future data publication is outside the scope of this
+foundation and requires a separate approval with source-specific provenance
+and licensing review.

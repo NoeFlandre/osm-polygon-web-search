@@ -23,6 +23,7 @@ exclude_docs: |
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Architecture: architecture.md
   - Data layout: data-layout.md
   - Development: development.md
   - Citation and license: citation.md
