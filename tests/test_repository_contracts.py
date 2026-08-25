@@ -32,3 +32,35 @@ def test_public_docs_state_the_seagate_only_policy() -> None:
     text = (ROOT / "docs" / "data-layout.md").read_text()
     assert "/Volumes/Seagate M3/projects/osm-polygon-web-search" in text
     assert "never uploaded" in text
+
+
+def test_dockerfile_runs_the_module_smoke_command() -> None:
+    text = (ROOT / "Dockerfile").read_text()
+    assert "uv sync --frozen --no-dev" in text
+    assert (
+        'CMD ["uv", "run", "--no-dev", "python", "-m", '
+        '"osm_polygon_web_search"]'
+    ) in text
+
+
+def test_ci_workflow_runs_the_complete_quality_surface() -> None:
+    text = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+    for command in (
+        "ruff format --check .",
+        "ruff check .",
+        "ty check",
+        "pytest",
+        "mkdocs build --strict",
+        "mutmut run",
+        "docker build",
+    ):
+        assert command in text
+
+
+def test_docs_workflow_builds_and_deploys_pages() -> None:
+    text = (ROOT / ".github" / "workflows" / "docs.yml").read_text()
+    assert "pages: write" in text
+    assert "id-token: write" in text
+    assert "mkdocs build --strict" in text
+    assert "upload-pages-artifact" in text
+    assert "deploy-pages" in text
