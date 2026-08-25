@@ -1,0 +1,28 @@
+site_name: OSM Polygon Web Search
+site_description: A Seagate-only foundation for OSM polygon web-search data work.
+site_url: https://noeflandre.github.io/osm-polygon-web-search/
+repo_name: NoeFlandre/osm-polygon-web-search
+repo_url: https://github.com/NoeFlandre/osm-polygon-web-search
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tasklist
+
+exclude_docs: |
+  superpowers/**
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Data layout: data-layout.md
+  - Development: development.md
+  - Citation and license: citation.md
