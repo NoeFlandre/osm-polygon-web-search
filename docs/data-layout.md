@@ -11,11 +11,13 @@ data boundary.
 The initial layout is:
 
     liechtenstein-latest.osm.pbf       immutable source snapshot
-    runs/poc/run.json                   candidate and query manifest
+    runs/poc/run.json                   candidate, query, and review manifest
 
-No local PBF, raw HTML, search response, or raw web content is published to
-GitHub or Hugging Face; these files are never uploaded. The initial Hugging
-Face dataset card is metadata-only.
+The PBF, raw HTML, provider response, and full parsed page text remain on the
+Seagate. The explicitly approved `runs/poc/run.json` review artifact is copied
+to Hugging Face as `poc/run.json`; it contains selected metadata, result
+metadata, statuses, extracted-text lengths, and criterion-level evidence.
+Raw web content is not published to GitHub or Hugging Face.
 The live search adapter is opt-in, and its credentials are read only from the
 `BRAVE_SEARCH_API_KEY` environment variable.
 

@@ -13,9 +13,10 @@ All local and derived data stays under:
 
     /Volumes/Seagate M3/projects/osm-polygon-web-search
 
-No local PBF, raw HTML, search response, or raw web content is published to
-GitHub or Hugging Face. The initial Hugging Face repository contains only its
-dataset card and license.
+The local PBF, raw HTML, provider response, and full parsed page text remain on
+the Seagate. An explicitly approved Hugging Face review artifact contains only
+selected polygon metadata, result metadata, HTTP status, extracted-text
+lengths, and criterion-level evidence; raw web content is not published.
 
 ## Development
 

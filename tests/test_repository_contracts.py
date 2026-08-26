@@ -14,10 +14,12 @@ def test_citation_declares_apache_license_and_repository() -> None:
     assert "osm-polygon-web-search" in text
 
 
-def test_dataset_card_is_metadata_only_and_apache_licensed() -> None:
+def test_dataset_card_describes_the_review_artifact_and_apache_license() -> None:
     text = (ROOT / "dataset" / "README.md").read_text()
     assert "license: apache-2.0" in text
-    assert "No data files are published" in text
+    assert "poc/run.json" in text
+    assert "raw HTML" in text
+    assert "full page text" in text
 
 
 def test_mkdocs_config_has_explicit_navigation_and_internal_exclusion() -> None:
@@ -30,7 +32,8 @@ def test_mkdocs_config_has_explicit_navigation_and_internal_exclusion() -> None:
 def test_public_docs_state_the_seagate_only_policy() -> None:
     text = (ROOT / "docs" / "data-layout.md").read_text()
     assert "/Volumes/Seagate M3/projects/osm-polygon-web-search" in text
-    assert "never uploaded" in text
+    assert "review artifact" in text
+    assert "raw HTML" in text
 
 
 def test_public_docs_describe_the_approved_pbf_search_poc() -> None:

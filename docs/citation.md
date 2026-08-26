@@ -11,7 +11,9 @@ If you use the project, cite it as:
 
 ## License
 
-The code and initial metadata-only publication are available under the
-[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). See the
-repository [LICENSE](https://github.com/NoeFlandre/osm-polygon-web-search/blob/main/LICENSE)
-for the complete terms.
+The project code, documentation, and original metadata are available under
+the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). The
+review artifact includes OSM-derived fields and web-derived evidence, which
+retain their source-specific terms. See the repository
+[LICENSE](https://github.com/NoeFlandre/osm-polygon-web-search/blob/main/LICENSE)
+for the complete Apache terms.

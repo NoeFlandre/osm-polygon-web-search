@@ -51,5 +51,5 @@ page](architecture.md) for query, rate-limit, and storage policy.
 ## Current remote scope
 
 The GitHub repository contains source and documentation. The Hugging Face
-dataset repository is metadata-only: its initial publication contains the
-dataset card and Apache-2.0 license, never local PBFs or raw web content.
+dataset repository contains the explicitly approved `poc/run.json` review
+artifact, never the local PBF, raw HTML, provider response, or full page text.
