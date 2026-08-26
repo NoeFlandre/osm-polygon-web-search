@@ -27,6 +27,18 @@ def test_relevance_requires_the_place_and_returns_physical_criteria() -> None:
     assert evidence[1].criteria == ("vegetation_ecosystem",)
 
 
+def test_relevance_recognizes_meadows_and_mountain_saddles() -> None:
+    evidence = find_evidence(
+        "Alpe Vermales is a meadow near a mountain saddle.",
+        place_name="Alpe Vermales",
+    )
+
+    assert evidence[0].criteria == (
+        "land_use_land_cover",
+        "terrain_geomorphology",
+    )
+
+
 def test_relevance_continues_after_a_nonmatching_sentence() -> None:
     assert (
         find_evidence(

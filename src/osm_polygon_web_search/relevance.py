@@ -10,6 +10,8 @@ CRITERION_TERMS: dict[str, tuple[str, ...]] = {
         "agriculture",
         "farmland",
         "urban",
+        "meadow",
+        "pasture",
     ),
     "soil_surface": (
         "soil",
@@ -19,6 +21,8 @@ CRITERION_TERMS: dict[str, tuple[str, ...]] = {
         "sand",
         "gravel",
         "stone",
+        "cliff",
+        "scree",
     ),
     "vegetation_ecosystem": (
         "vegetation",
@@ -28,6 +32,8 @@ CRITERION_TERMS: dict[str, tuple[str, ...]] = {
         "grassland",
         "wetland",
         "habitat",
+        "wildlife",
+        "plant",
     ),
     "terrain_geomorphology": (
         "terrain",
@@ -37,6 +43,12 @@ CRITERION_TERMS: dict[str, tuple[str, ...]] = {
         "ridge",
         "slope",
         "formation",
+        "mountain",
+        "saddle",
+        "basin",
+        "plateau",
+        "peak",
+        "pass",
     ),
     "buildings_infrastructure": (
         "building",
@@ -44,6 +56,10 @@ CRITERION_TERMS: dict[str, tuple[str, ...]] = {
         "bridge",
         "road",
         "railway",
+        "hut",
+        "shelter",
+        "trail",
+        "path",
     ),
     "physical_setting": (
         "located",
@@ -51,6 +67,9 @@ CRITERION_TERMS: dict[str, tuple[str, ...]] = {
         "extent",
         "landscape",
         "geographic",
+        "situated",
+        "nearby",
+        "border",
     ),
 }
 
