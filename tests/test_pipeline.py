@@ -35,8 +35,7 @@ def test_build_plan_selects_one_unique_candidate_without_a_provider(
         Path(
             "/Volumes/Seagate M3/projects/osm-polygon-web-search/"
             "liechtenstein-latest.osm.pbf"
-        ),
-        keywords=["geology"],
+        )
     )
 
     assert plan["country"] == "Liechtenstein"
@@ -55,7 +54,7 @@ def test_build_plan_selects_one_unique_candidate_without_a_provider(
         "tags": {"name": "Alp X"},
         "geometry": {"type": "Polygon", "coordinates": []},
     }
-    assert plan["query"] == '"Alp X" "Liechtenstein" (geology)'
+    assert plan["query"] == '"Alp X" "Liechtenstein" "landuse description"'
 
 
 def test_output_paths_must_stay_under_the_seagate_data_root() -> None:

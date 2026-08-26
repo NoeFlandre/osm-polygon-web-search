@@ -23,10 +23,14 @@ called.
 
 ## Query and page processing
 
-The query quotes the polygon name and country and adds the physical-place
-keyword profile:
+The default query is the polygon name, the country derived from the PBF
+basename, and the exact phrase `landuse description`:
 
-    "Alpe Vermales" "Liechtenstein" (geology OR geomorphology OR terrain OR vegetation OR ecosystem OR "land cover" OR "land use" OR infrastructure)
+    "Alpe Vermales" "Liechtenstein" "landuse description"
+
+Live search retrieves up to five result pages per polygon by default. The
+`--results` option allows 1–20 pages; fewer may be returned when the provider
+has fewer results or a page fetch fails.
 
 The search engine is accessed through a provider adapter. The first adapter is
 the [Brave Search API](https://brave.com/search/api/), using its JSON web-search

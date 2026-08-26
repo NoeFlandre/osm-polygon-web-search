@@ -17,7 +17,7 @@ def build_query(name: str, country: str, keywords: Iterable[str]) -> str:
     ]
     if not cleaned_keywords:
         raise ValueError("at least one search keyword is required")
-    return (
-        f'"{_clean_phrase(name)}" "{_clean_phrase(country)}" '
-        f"({' OR '.join(cleaned_keywords)})"
-    )
+    prefix = f'"{_clean_phrase(name)}" "{_clean_phrase(country)}"'
+    if len(cleaned_keywords) == 1:
+        return f"{prefix} {cleaned_keywords[0]}"
+    return f"{prefix} ({' OR '.join(cleaned_keywords)})"

@@ -14,16 +14,7 @@ from .relevance import find_evidence
 from .search import BraveSearchProvider, SearchProvider
 
 DEFAULT_PBF = data_root() / "liechtenstein-latest.osm.pbf"
-DEFAULT_KEYWORDS = (
-    "geology",
-    "geomorphology",
-    "terrain",
-    "vegetation",
-    "ecosystem",
-    "land cover",
-    "land use",
-    "infrastructure",
-)
+DEFAULT_KEYWORDS = ("landuse description",)
 
 
 def ensure_data_path(path: Path) -> Path:

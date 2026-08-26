@@ -11,7 +11,7 @@ def test_query_quotes_place_and_country_and_includes_keywords() -> None:
 
 def test_query_removes_embedded_quotes_from_phrases() -> None:
     assert build_query('A "B"', "Liechtenstein", ["geology"]) == (
-        '"A B" "Liechtenstein" (geology)'
+        '"A B" "Liechtenstein" geology'
     )
 
 
@@ -22,5 +22,11 @@ def test_query_requires_at_least_one_nonempty_keyword() -> None:
 
 def test_query_quotes_multiword_keywords() -> None:
     assert build_query("Alp X", "Liechtenstein", ["land cover"]) == (
-        '"Alp X" "Liechtenstein" ("land cover")'
+        '"Alp X" "Liechtenstein" "land cover"'
+    )
+
+
+def test_query_with_one_keyword_is_an_exact_three_phrase_query() -> None:
+    assert build_query("Alp X", "Liechtenstein", ["landuse description"]) == (
+        '"Alp X" "Liechtenstein" "landuse description"'
     )

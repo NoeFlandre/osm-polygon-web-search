@@ -4,7 +4,7 @@ A small, Apache-2.0-licensed PBF-first proof of concept for OSM polygon web-sear
 
 The proof of concept scans one local PBF, keeps named closed ways and area
 relations whose normalized name is unique within that PBF, derives the country
-from the PBF basename, builds a physical-geography query, and can optionally
+from the PBF basename, builds the query `"<polygon name>" "<country>" "landuse description"`, and can optionally
 search Brave and extract page text with Trafilatura.
 
 ## Data policy

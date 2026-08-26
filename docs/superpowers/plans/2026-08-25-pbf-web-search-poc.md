@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Scan the pinned Liechtenstein PBF for named polygon candidates, keep one name-unique candidate, build a deterministic physical-geography web query, optionally search through Brave, and extract page text with Trafilatura while keeping all generated data on the Seagate.
+**Goal:** Scan the pinned Liechtenstein PBF for named polygon candidates, keep one name-unique candidate, build the deterministic query `"<polygon name>" "Liechtenstein" "landuse description"`, optionally search through Brave, and extract page text with Trafilatura while keeping all generated data on the Seagate.
 
 **Architecture:** Use a PBF-first pipeline with pure selection and query modules, a pyosmium adapter for closed ways and area relations, a provider protocol with a Brave Search implementation, and a Trafilatura-based page extractor. The first run is sequential and resumable through explicit Seagate output paths; network access is opt-in and absent from tests.
 
@@ -69,7 +69,7 @@ def test_query_quotes_place_and_country_and_includes_keywords() -> None:
 
 def test_query_escapes_embedded_quotes() -> None:
     assert build_query('A "B"', "Liechtenstein", ["geology"]) == (
-        '"A B" "Liechtenstein" (geology)'
+        '"A B" "Liechtenstein" geology'
     )
 ```
 
@@ -218,7 +218,7 @@ Expected: collection fails because the pipeline and CLI contracts do not exist.
 
 - [ ] **Step 3: Implement the pipeline and CLI**
 
-Add `--pbf`, `--keyword`, `--plan-only`, `--search`, `--results`, and `--output-dir` arguments. Default the PBF to the Seagate Liechtenstein file, default the query keyword profile to the physical-geography terms, write JSON run artifacts only beneath `DATA_ROOT`, and keep the existing no-argument smoke command unchanged.
+Add `--pbf`, `--keyword`, `--plan-only`, `--search`, `--results`, and `--output-dir` arguments. Default the PBF to the Seagate Liechtenstein file, default the query keyword to `landuse description`, write JSON run artifacts only beneath `DATA_ROOT`, and keep the existing no-argument smoke command unchanged. Retrieve five result pages by default, with `--results` bounded to 1–20.
 
 - [ ] **Step 4: Run the focused tests and the real plan-only POC**
 

@@ -32,6 +32,12 @@ Run the offline plan first:
 This scans the PBF, counts normalized names across named polygon candidates,
 selects one unique physical-place candidate, derives `Liechtenstein` from the
 filename, builds the query, and writes `runs/poc/run.json` on the Seagate.
+The default query is exactly:
+
+    "<polygon name>" "Liechtenstein" "landuse description"
+
+With live search enabled, the POC retrieves up to five result pages for the
+selected polygon. Use `--results N` to request between 1 and 20 pages.
 
 Live search is opt-in and requires a Brave API key:
 
