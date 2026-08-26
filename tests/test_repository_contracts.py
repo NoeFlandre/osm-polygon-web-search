@@ -14,10 +14,11 @@ def test_citation_declares_apache_license_and_repository() -> None:
     assert "osm-polygon-web-search" in text
 
 
-def test_dataset_card_describes_the_review_artifact_and_apache_license() -> None:
+def test_dataset_card_describes_the_viewer_table_and_apache_license() -> None:
     text = (ROOT / "dataset" / "README.md").read_text()
     assert "license: apache-2.0" in text
-    assert "poc/run.json" in text
+    assert "train.parquet" in text
+    assert "polygon_image" in text
     assert "raw HTML" in text
     assert "full page text" in text
 
@@ -32,7 +33,7 @@ def test_mkdocs_config_has_explicit_navigation_and_internal_exclusion() -> None:
 def test_public_docs_state_the_seagate_only_policy() -> None:
     text = (ROOT / "docs" / "data-layout.md").read_text()
     assert "/Volumes/Seagate M3/projects/osm-polygon-web-search" in text
-    assert "review artifact" in text
+    assert "train.parquet" in text
     assert "raw HTML" in text
 
 
@@ -52,7 +53,8 @@ def test_public_docs_describe_the_approved_pbf_search_poc() -> None:
         "Liechtenstein",
         "Trafilatura",
         "BRAVE_SEARCH_API_KEY",
-        "raw web content is not published",
+        "raw HTML",
+        "full page text",
     ):
         assert required in combined
 

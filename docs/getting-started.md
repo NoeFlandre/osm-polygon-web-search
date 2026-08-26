@@ -51,5 +51,7 @@ page](architecture.md) for query, rate-limit, and storage policy.
 ## Current remote scope
 
 The GitHub repository contains source and documentation. The Hugging Face
-dataset repository contains the explicitly approved `poc/run.json` review
-artifact, never the local PBF, raw HTML, provider response, or full page text.
+dataset repository contains the explicitly approved Viewer-ready
+`train.parquet` table: one row per fetched page with the polygon image,
+geometry, query, URL, and full parsed text. It never contains the local PBF,
+raw HTML, or provider response.

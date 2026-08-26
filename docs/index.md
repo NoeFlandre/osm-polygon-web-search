@@ -15,7 +15,9 @@ The approved first pipeline is deliberately small:
   1–20);
 - extracts page text with Trafilatura and records criterion-level evidence;
 - all local and derived data stays on the Seagate volume;
-- raw web content is not published to Hugging Face.
+- the approved Hugging Face table includes the polygon image, geometry, query,
+  URL, full parsed text, and evidence; raw HTML and provider responses are not
+  published.
 
 Start with the [getting-started guide](getting-started.md), then read the
 [architecture](architecture.md) and [data policy](data-layout.md).

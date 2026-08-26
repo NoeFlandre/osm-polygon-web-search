@@ -62,7 +62,9 @@ selected 429/503 responses with `Retry-After` or exponential backoff, and
 apply sequential delays. Future batch execution should add provider budgets,
 per-host concurrency, URL deduplication, checkpointed jobs, and a
 content-addressed cache only when the provider terms permit storing responses.
-Raw web content is not published to Hugging Face.
+The approved Hugging Face table contains the polygon image, geometry, query,
+URL, full Trafilatura-parsed text, and evidence for inspection. Raw HTML and
+provider responses are not published to Hugging Face.
 
 The POC intentionally does not introduce a queue, database server, browser
 automation, embeddings, or an LLM. The pure candidate, query, provider, fetch,

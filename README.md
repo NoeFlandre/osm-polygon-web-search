@@ -13,10 +13,11 @@ All local and derived data stays under:
 
     /Volumes/Seagate M3/projects/osm-polygon-web-search
 
-The local PBF, raw HTML, provider response, and full parsed page text remain on
-the Seagate. An explicitly approved Hugging Face review artifact contains only
-selected polygon metadata, result metadata, HTTP status, extracted-text
-lengths, and criterion-level evidence; raw web content is not published.
+The local PBF, raw HTML, and provider response remain on the Seagate. An
+explicitly approved Hugging Face Viewer table contains one row per fetched
+page, a rendered polygon image and geometry, the query, URL, title, full
+Trafilatura-parsed text, and criterion-level evidence. Raw HTML and provider
+responses are not published.
 
 ## Development
 
