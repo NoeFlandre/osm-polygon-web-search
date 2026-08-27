@@ -12,7 +12,7 @@ This public Hugging Face dataset contains one explicitly approved POC table at
 `train.parquet`, with one row per fetched web page. It is designed for the
 Hugging Face Dataset Viewer: the `polygon_image` column renders the selected
 polygon, while the table exposes the polygon geometry, query, page URL, title,
-HTTP status, full page text parsed by Trafilatura, and criterion-level evidence.
+HTTP status, and full page text parsed by Trafilatura.
 
 The table includes these main fields:
 
@@ -24,7 +24,9 @@ The table includes these main fields:
 | `query`, `executed_query`, `search_provider`, `fallback_reason` | Search provenance |
 | `page_rank`, `title`, `page_url`, `http_status` | Retrieved-page metadata |
 | `text`, `text_char_count` | Full page text extracted by Trafilatura and its length |
-| `evidence`, `criteria` | Relevant sentences and matched physical-geography criteria |
+
+The extracted `evidence` and `criteria` fields are intentionally omitted from
+this revision. The full parsed `text` remains available for inspection.
 
 The source PBF and local working artifacts stay under:
 
@@ -35,5 +37,5 @@ response. Full parsed page text is included explicitly for this POC so the
 results can be inspected in the Viewer; raw HTML and provider responses are
 not published to Hugging Face.
 The Apache-2.0 license applies to the project’s original code and
-documentation; OSM-derived fields and web-derived evidence retain their
+documentation; OSM-derived fields and web-derived text retain their
 source-specific terms and should not be treated as Apache-2.0 content.

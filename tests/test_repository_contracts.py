@@ -21,6 +21,7 @@ def test_dataset_card_describes_the_viewer_table_and_apache_license() -> None:
     assert "polygon_image" in text
     assert "raw HTML" in text
     assert "full page text" in text
+    assert "| `evidence`, `criteria` |" not in text
 
 
 def test_mkdocs_config_has_explicit_navigation_and_internal_exclusion() -> None:

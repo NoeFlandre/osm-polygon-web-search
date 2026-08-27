@@ -15,9 +15,9 @@ All local and derived data stays under:
 
 The local PBF, raw HTML, and provider response remain on the Seagate. An
 explicitly approved Hugging Face Viewer table contains one row per fetched
-page, a rendered polygon image and geometry, the query, URL, title, full
-Trafilatura-parsed text, and criterion-level evidence. Raw HTML and provider
-responses are not published.
+page, a rendered polygon image and geometry, the query, URL, title, and full
+Trafilatura-parsed text. The published table omits extracted evidence and
+criteria. Raw HTML and provider responses are not published.
 
 ## Development
 

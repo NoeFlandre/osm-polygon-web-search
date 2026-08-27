@@ -63,8 +63,9 @@ apply sequential delays. Future batch execution should add provider budgets,
 per-host concurrency, URL deduplication, checkpointed jobs, and a
 content-addressed cache only when the provider terms permit storing responses.
 The approved Hugging Face table contains the polygon image, geometry, query,
-URL, full Trafilatura-parsed text, and evidence for inspection. Raw HTML and
-provider responses are not published to Hugging Face.
+URL, and full Trafilatura-parsed text for inspection. The published table omits
+extracted evidence and criteria. Raw HTML and provider responses are not
+published to Hugging Face.
 
 The POC intentionally does not introduce a queue, database server, browser
 automation, embeddings, or an LLM. The pure candidate, query, provider, fetch,

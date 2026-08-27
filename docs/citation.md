@@ -13,7 +13,7 @@ If you use the project, cite it as:
 
 The project code, documentation, and original metadata are available under
 the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). The
-Viewer table includes OSM-derived fields and web-derived text and evidence,
-which retain their source-specific terms. See the repository
+Viewer table includes OSM-derived fields and web-derived text, which retain
+their source-specific terms. See the repository
 [LICENSE](https://github.com/NoeFlandre/osm-polygon-web-search/blob/main/LICENSE)
 for the complete Apache terms.
