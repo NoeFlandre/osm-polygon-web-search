@@ -18,11 +18,24 @@ def test_dataset_card_describes_the_viewer_table_and_apache_license() -> None:
     text = (ROOT / "dataset" / "README.md").read_text()
     assert "license: apache-2.0" in text
     assert "train.parquet" in text
-    assert "polygon_image" in text
-    assert "query_variant" in text
+    assert "polygon_geojson" in text
+    assert "exact Brave" in text
     assert "raw HTML" in text
     assert "full page text" in text
     assert "| `evidence`, `criteria` |" not in text
+
+
+def test_dataset_card_excludes_removed_viewer_columns() -> None:
+    text = (ROOT / "dataset" / "README.md").read_text()
+
+    for column in (
+        "polygon_image",
+        "query_variant",
+        "executed_query",
+        "search_provider",
+        "fallback_reason",
+    ):
+        assert f"`{column}`" not in text
 
 
 def test_mkdocs_config_has_explicit_navigation_and_internal_exclusion() -> None:

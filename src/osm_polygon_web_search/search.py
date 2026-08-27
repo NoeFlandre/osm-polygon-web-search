@@ -37,7 +37,11 @@ class BraveSearchProvider:
         backoff_seconds: float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        self.api_key = api_key
+        self.api_key = api_key or os.environ.get("BRAVE_SEARCH_API_KEY", "")
+        if not self.api_key:
+            raise SearchProviderError(
+                "BRAVE_SEARCH_API_KEY is required for live Brave searches"
+            )
         self.opener = opener
         self.base_url = base_url
         self.timeout = timeout
@@ -46,18 +50,12 @@ class BraveSearchProvider:
         self.sleep = sleep
 
     def search(self, query: str, *, count: int = 5) -> list[SearchResult]:
-        api_key = self.api_key or os.environ.get("BRAVE_SEARCH_API_KEY", "")
-        if not api_key:
-            raise SearchProviderError(
-                "BRAVE_SEARCH_API_KEY is required for live Brave searches"
-            )
-
         params = urlencode({"q": query, "count": max(1, min(count, 20))})
         request = Request(
             f"{self.base_url}?{params}",
             headers={
                 "Accept": "application/json",
-                "X-Subscription-Token": api_key,
+                "X-Subscription-Token": self.api_key,
             },
         )
         for attempt in range(self.max_retries + 1):

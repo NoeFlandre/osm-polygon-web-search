@@ -72,11 +72,11 @@ def test_brave_provider_maps_web_results() -> None:
     ]
 
 
-def test_brave_provider_requires_an_explicit_api_key() -> None:
-    provider = BraveSearchProvider(api_key="")
+def test_brave_provider_fails_without_an_api_key(monkeypatch) -> None:
+    monkeypatch.delenv("BRAVE_SEARCH_API_KEY", raising=False)
 
     with pytest.raises(SearchProviderError, match="BRAVE_SEARCH_API_KEY"):
-        provider.search("test")
+        BraveSearchProvider(api_key="")
 
 
 def test_brave_provider_reads_the_api_key_from_the_environment(monkeypatch) -> None:

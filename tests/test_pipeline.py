@@ -332,6 +332,7 @@ def test_search_variant_records_runs_each_query_variant(monkeypatch) -> None:
 def test_run_poc_writes_the_manifest_inside_the_validated_output_path(
     monkeypatch, tmp_path
 ) -> None:
+    monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "test-key")
     monkeypatch.setattr(
         "osm_polygon_web_search.pipeline.build_plan",
         lambda path, keywords: {"query": None, "selected": None},
@@ -378,6 +379,7 @@ def test_run_poc_writes_a_plan_without_live_search(monkeypatch, tmp_path) -> Non
 
 
 def test_run_poc_writes_all_variant_results(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "test-key")
     monkeypatch.setattr(
         pipeline_module,
         "build_variant_plan",

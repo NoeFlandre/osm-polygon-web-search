@@ -17,8 +17,8 @@ The approved first pipeline is deliberately small:
   1–20; `--all-variants` runs V1–V9);
 - extracts page text with Trafilatura and records criterion-level evidence;
 - all local and derived data stays on the Seagate volume;
-- the approved Hugging Face table includes the polygon image, geometry, query
-  variant, URL, and full parsed text; extracted evidence and criteria, raw HTML,
+- the approved Hugging Face table includes polygon geometry, the exact Brave
+  query, URL, and full parsed text; extracted evidence and criteria, raw HTML,
   and provider responses are not published.
 
 Start with the [getting-started guide](getting-started.md), then read the

@@ -66,13 +66,14 @@ stronger classifier can later be added behind the same evidence contract.
 ## Network and scale controls
 
 The first run is sequential and plan-only by default. Live search requires
-`--search`. The adapters already bound timeouts and response sizes, retry
-selected 429/503 responses with `Retry-After` or exponential backoff, and
-apply sequential delays. Future batch execution should add provider budgets,
-per-host concurrency, URL deduplication, checkpointed jobs, and a
-content-addressed cache only when the provider terms permit storing responses.
-The approved Hugging Face table contains the polygon image, geometry, query,
-URL, and full Trafilatura-parsed text for inspection. The published table omits
+`--search` and `BRAVE_SEARCH_API_KEY`; a missing key is a hard configuration
+error. The adapter bounds timeouts and response sizes, retries selected 429/503
+responses with `Retry-After` or exponential backoff, and applies sequential
+delays. Future batch execution should add provider budgets, per-host
+concurrency, URL deduplication, checkpointed jobs, and a content-addressed
+cache only when the provider terms permit storing responses. The approved
+Hugging Face table contains polygon geometry, the exact Brave query, URL, and
+full Trafilatura-parsed text for inspection. The published table omits
 extracted evidence and criteria. Raw HTML and provider responses are not
 published to Hugging Face.
 
