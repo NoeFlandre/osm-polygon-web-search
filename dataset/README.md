@@ -23,7 +23,7 @@ The table includes these main fields:
 | --- | --- |
 | `polygon_geojson`, centroid, and bounding-box fields | Polygon geometry and map context |
 | `polygon_name`, `country`, `osm_type`, `osm_id`, `landuse` | OSM identity and tags |
-| `query` | Exact Brave query used for the search |
+| `query_keyword`, `query` | Approved keyword phrase and exact Brave query used for the search |
 | `page_rank`, `title`, `page_url`, `http_status` | Retrieved-page metadata |
 | `text`, `text_char_count` | Full page text extracted by Trafilatura and its length |
 

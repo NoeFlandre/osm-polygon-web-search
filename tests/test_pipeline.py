@@ -5,7 +5,7 @@ import pytest
 
 import osm_polygon_web_search.pipeline as pipeline_module
 from osm_polygon_web_search.candidates import PolygonCandidate
-from osm_polygon_web_search.fetch import FetchedPage, PageProvider
+from osm_polygon_web_search.fetch import FetchedPage, PageFetchError, PageProvider
 from osm_polygon_web_search.names import normalize_name
 from osm_polygon_web_search.pipeline import (
     _search_records,
@@ -283,6 +283,40 @@ def test_search_records_fetches_pages_and_serializes_evidence() -> None:
                 }
             ],
         }
+    ]
+
+
+def test_search_records_skips_pages_that_cannot_be_fetched() -> None:
+    class Provider:
+        def search(self, query: str, *, count: int = 5) -> list[SearchResult]:
+            return [
+                SearchResult(1, "Unavailable", "https://example.test/unavailable", ""),
+                SearchResult(2, "Available", "https://example.test/available", ""),
+            ]
+
+    class Fetcher:
+        def fetch(self, url: str) -> FetchedPage:
+            if url.endswith("unavailable"):
+                raise PageFetchError("page request failed")
+            return FetchedPage(
+                url=url,
+                status=200,
+                html="<p>Alp X has limestone.</p>",
+                text="Alp X has limestone.",
+            )
+
+    records = _search_records(
+        {
+            "query": '"Alp X" "Liechtenstein" "land cover"',
+            "selected": {"name_raw": "Alp X"},
+        },
+        provider=Provider(),
+        fetcher=Fetcher(),
+        result_count=5,
+    )
+
+    assert [record["result"]["url"] for record in records] == [
+        "https://example.test/available"
     ]
 
 

@@ -7,7 +7,7 @@ from typing import Any
 from .candidates import PolygonCandidate, unique_candidates
 from .country import country_from_pbf
 from .data_root import data_root
-from .fetch import PageFetcher, PageProvider
+from .fetch import PageFetcher, PageFetchError, PageProvider
 from .pbf import scan_pbf
 from .queries import QUERY_VARIANTS, build_query, build_variant_queries
 from .relevance import find_evidence
@@ -129,7 +129,10 @@ def _search_records(
 
     results: list[dict[str, Any]] = []
     for result in provider.search(query, count=result_count):
-        page = fetcher.fetch(result.url)
+        try:
+            page = fetcher.fetch(result.url)
+        except PageFetchError:
+            continue
         evidence = find_evidence(page.text or "", place_name=selected["name_raw"])
         results.append(
             {
