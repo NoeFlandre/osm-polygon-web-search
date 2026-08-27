@@ -4,8 +4,10 @@ A small, Apache-2.0-licensed PBF-first proof of concept for OSM polygon web-sear
 
 The proof of concept scans one local PBF, keeps named closed ways and area
 relations whose normalized name is unique within that PBF, derives the country
-from the PBF basename, builds the query `"<polygon name>" "<country>" "landuse description"`, and can optionally
-search Brave and extract page text with Trafilatura.
+from the PBF basename, builds nine place-scoped query variants for land cover,
+land use, vegetation, terrain, soil/surface, ecosystems, physical geography,
+buildings/infrastructure, and landscape/environment, and can optionally search
+Brave and extract page text with Trafilatura.
 
 ## Data policy
 
@@ -24,6 +26,7 @@ criteria. Raw HTML and provider responses are not published.
     uv sync
     uv run python -m osm_polygon_web_search
     uv run python -m osm_polygon_web_search --plan-only
+    uv run python -m osm_polygon_web_search --all-variants --plan-only
     BRAVE_SEARCH_API_KEY=... uv run python -m osm_polygon_web_search --search
     uv run pytest -q --cov=osm_polygon_web_search --cov-report=term-missing
     uv run ruff format --check .

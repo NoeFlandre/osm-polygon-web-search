@@ -19,6 +19,7 @@ def test_dataset_card_describes_the_viewer_table_and_apache_license() -> None:
     assert "license: apache-2.0" in text
     assert "train.parquet" in text
     assert "polygon_image" in text
+    assert "query_variant" in text
     assert "raw HTML" in text
     assert "full page text" in text
     assert "| `evidence`, `criteria` |" not in text

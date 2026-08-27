@@ -31,17 +31,26 @@ Run the offline plan first:
 
 This scans the PBF, counts normalized names across named polygon candidates,
 selects one unique physical-place candidate, derives `Liechtenstein` from the
-filename, builds the query, and writes `runs/poc/run.json` on the Seagate.
+filename, builds the V1 query, and writes `runs/poc/run.json` on the Seagate.
 The default query is exactly:
 
-    "<polygon name>" "Liechtenstein" "landuse description"
+    "<polygon name>" "Liechtenstein" "land cover"
+
+To include every approved query variant in the plan, use:
+
+    uv run python -m osm_polygon_web_search --all-variants --plan-only
+
+The nine variants are V1 `land cover`, V2 `land use`, V3 `vegetation`, V4
+`terrain`, V5 `soil surface`, V6 `ecosystem`, V7 `physical geography`, V8
+`buildings infrastructure`, and V9 `landscape environment`.
 
 With live search enabled, the POC retrieves up to five result pages for the
-selected polygon. Use `--results N` to request between 1 and 20 pages.
+selected polygon in V1 mode. Add `--all-variants` to search all nine variants;
+use `--results N` to request between 1 and 20 pages per variant.
 
 Live search is opt-in and requires a Brave API key:
 
-    BRAVE_SEARCH_API_KEY=... uv run python -m osm_polygon_web_search --search
+    BRAVE_SEARCH_API_KEY=... uv run python -m osm_polygon_web_search --search --all-variants
 
 The standard Brave Search API currently charges per search request after its
 included monthly credits. The program does not make a live request unless
@@ -53,5 +62,5 @@ page](architecture.md) for query, rate-limit, and storage policy.
 The GitHub repository contains source and documentation. The Hugging Face
 dataset repository contains the explicitly approved Viewer-ready
 `train.parquet` table: one row per fetched page with the polygon image,
-geometry, query, URL, and full parsed text. It never contains the local PBF,
-raw HTML, or provider response.
+geometry, query variant, URL, and full parsed text. It never contains the local
+PBF, raw HTML, or provider response.

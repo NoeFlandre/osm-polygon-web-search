@@ -11,14 +11,14 @@ data boundary.
 The initial layout is:
 
     liechtenstein-latest.osm.pbf       immutable source snapshot
-    runs/poc/run.json                   candidate, query, and review manifest
+    runs/poc/run.json                   candidate, query variants, and review manifest
     runs/poc/hf-viewer/train.parquet   Viewer-ready one-row-per-page table
     runs/poc/hf-viewer/*.png           polygon preview used by the table
 
 The PBF, raw HTML, and provider response remain on the Seagate. The explicitly
 approved `runs/poc/hf-viewer/train.parquet` table is copied to Hugging Face as
 `train.parquet`; it contains one row per fetched page, a rendered polygon
-image, geometry, query and URL fields, and full page text parsed by Trafilatura.
+image, geometry, query variant and URL fields, and full page text parsed by Trafilatura.
 The published table omits extracted evidence and criteria. Raw HTML and
 provider responses are not published to GitHub or Hugging Face.
 The live search adapter is opt-in, and its credentials are read only from the

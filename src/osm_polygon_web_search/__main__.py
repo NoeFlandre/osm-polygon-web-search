@@ -25,6 +25,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--results", type=int, default=5)
     parser.add_argument("--plan-only", action="store_true")
     parser.add_argument("--search", action="store_true")
+    parser.add_argument("--all-variants", action="store_true")
     args = parser.parse_args(list(argv))
     if args.plan_only and args.search:
         parser.error("--plan-only and --search are mutually exclusive")
@@ -35,6 +36,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         keywords=args.keywords or DEFAULT_KEYWORDS,
         search=args.search,
         result_count=args.results,
+        all_variants=args.all_variants,
     )
     print(output_path)
 

@@ -14,6 +14,10 @@ Hugging Face Dataset Viewer: the `polygon_image` column renders the selected
 polygon, while the table exposes the polygon geometry, query, page URL, title,
 HTTP status, and full page text parsed by Trafilatura.
 
+The rows cover nine query variants: V1 `land cover`, V2 `land use`, V3
+`vegetation`, V4 `terrain`, V5 `soil surface`, V6 `ecosystem`, V7 `physical
+geography`, V8 `buildings infrastructure`, and V9 `landscape environment`.
+
 The table includes these main fields:
 
 | Field | Purpose |
@@ -21,12 +25,12 @@ The table includes these main fields:
 | `polygon_image` | Rendered polygon preview for the selected OSM object |
 | `polygon_geojson`, centroid, and bounding-box fields | Polygon geometry and map context |
 | `polygon_name`, `country`, `osm_type`, `osm_id`, `landuse` | OSM identity and tags |
-| `query`, `executed_query`, `search_provider`, `fallback_reason` | Search provenance |
+| `query_variant`, `query_keyword`, `query`, `executed_query`, `search_provider`, `fallback_reason` | Search provenance |
 | `page_rank`, `title`, `page_url`, `http_status` | Retrieved-page metadata |
 | `text`, `text_char_count` | Full page text extracted by Trafilatura and its length |
 
-The extracted `evidence` and `criteria` fields are intentionally omitted from
-this revision. The full parsed `text` remains available for inspection.
+The extracted evidence and criteria fields are intentionally omitted from this
+revision. The full parsed `text` remains available for inspection.
 
 The source PBF and local working artifacts stay under:
 

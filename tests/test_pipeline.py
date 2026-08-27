@@ -1,9 +1,11 @@
 from pathlib import Path
+from typing import cast
 
 import pytest
 
+import osm_polygon_web_search.pipeline as pipeline_module
 from osm_polygon_web_search.candidates import PolygonCandidate
-from osm_polygon_web_search.fetch import FetchedPage
+from osm_polygon_web_search.fetch import FetchedPage, PageProvider
 from osm_polygon_web_search.names import normalize_name
 from osm_polygon_web_search.pipeline import (
     _search_records,
@@ -12,7 +14,7 @@ from osm_polygon_web_search.pipeline import (
     run_poc,
     select_candidate,
 )
-from osm_polygon_web_search.search import SearchResult
+from osm_polygon_web_search.search import SearchProvider, SearchResult
 
 
 def test_build_plan_selects_one_unique_candidate_without_a_provider(
@@ -54,7 +56,55 @@ def test_build_plan_selects_one_unique_candidate_without_a_provider(
         "tags": {"name": "Alp X"},
         "geometry": {"type": "Polygon", "coordinates": []},
     }
-    assert plan["query"] == '"Alp X" "Liechtenstein" "landuse description"'
+    assert plan["query"] == '"Alp X" "Liechtenstein" "land cover"'
+
+
+def test_build_variant_plan_lists_all_queries_without_the_old_baseline(
+    monkeypatch,
+) -> None:
+    candidate = PolygonCandidate(
+        osm_type="way",
+        osm_id=42,
+        name_raw="Alp X",
+        name_key=normalize_name("Alp X"),
+        tags={"name": "Alp X"},
+        geometry={"type": "Polygon", "coordinates": []},
+    )
+    monkeypatch.setattr(
+        "osm_polygon_web_search.pipeline.scan_pbf",
+        lambda path: [candidate],
+    )
+
+    plan = pipeline_module.build_variant_plan(
+        Path(
+            "/Volumes/Seagate M3/projects/osm-polygon-web-search/"
+            "liechtenstein-latest.osm.pbf"
+        )
+    )
+
+    assert plan["query"] is None
+    assert [item["id"] for item in plan["query_variants"]] == [
+        f"v{number}" for number in range(1, 10)
+    ]
+    assert all("description" not in item["query"] for item in plan["query_variants"])
+
+
+def test_build_variant_plan_has_no_queries_without_a_selection(monkeypatch) -> None:
+    monkeypatch.setattr("osm_polygon_web_search.pipeline.scan_pbf", lambda path: [])
+
+    plan = pipeline_module.build_variant_plan(Path("liechtenstein-latest.osm.pbf"))
+
+    assert plan["selected"] is None
+    assert plan["query"] is None
+    assert plan["query_variants"] == []
+
+
+def test_build_variant_plan_requires_at_least_one_variant() -> None:
+    with pytest.raises(ValueError, match="^at least one query variant is required$"):
+        pipeline_module.build_variant_plan(
+            Path("liechtenstein-latest.osm.pbf"),
+            variants=(),
+        )
 
 
 def test_output_paths_must_stay_under_the_seagate_data_root() -> None:
@@ -236,6 +286,49 @@ def test_search_records_fetches_pages_and_serializes_evidence() -> None:
     ]
 
 
+def test_search_variant_records_runs_each_query_variant(monkeypatch) -> None:
+    calls = []
+
+    def fake_search_records(plan, *, provider, fetcher, result_count):
+        calls.append((plan["query"], result_count))
+        return [{"query": plan["query"]}]
+
+    monkeypatch.setattr(pipeline_module, "_search_records", fake_search_records)
+    plan = {
+        "query": None,
+        "selected": {"name_raw": "Alp X"},
+        "query_variants": [
+            {
+                "id": "v1",
+                "keyword": "land cover",
+                "query": '"Alp X" "Liechtenstein" "land cover"',
+            },
+            {
+                "id": "v2",
+                "keyword": "land use",
+                "query": '"Alp X" "Liechtenstein" "land use"',
+            },
+        ],
+    }
+
+    records = pipeline_module._search_variant_records(
+        plan,
+        provider=cast(SearchProvider, object()),
+        fetcher=cast(PageProvider, object()),
+        result_count=5,
+    )
+
+    assert [item["id"] for item in records] == ["v1", "v2"]
+    assert [item["results"] for item in records] == [
+        [{"query": '"Alp X" "Liechtenstein" "land cover"'}],
+        [{"query": '"Alp X" "Liechtenstein" "land use"'}],
+    ]
+    assert calls == [
+        ('"Alp X" "Liechtenstein" "land cover"', 5),
+        ('"Alp X" "Liechtenstein" "land use"', 5),
+    ]
+
+
 def test_run_poc_writes_the_manifest_inside_the_validated_output_path(
     monkeypatch, tmp_path
 ) -> None:
@@ -282,3 +375,30 @@ def test_run_poc_writes_a_plan_without_live_search(monkeypatch, tmp_path) -> Non
     assert output.exists()
     assert output.read_text() == '{\n  "query": null,\n  "selected": null\n}\n'
     assert '"results"' not in output.read_text()
+
+
+def test_run_poc_writes_all_variant_results(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        pipeline_module,
+        "build_variant_plan",
+        lambda path: {"query": None, "query_variants": []},
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "ensure_data_path",
+        lambda path: tmp_path,
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "_search_variant_records",
+        lambda plan, provider, fetcher, result_count: [{"id": "v1"}],
+    )
+
+    output = pipeline_module.run_poc(
+        Path("liechtenstein-latest.osm.pbf"),
+        output_dir=Path("ignored"),
+        all_variants=True,
+        search=True,
+    )
+
+    assert '"variant_results": [' in output.read_text()

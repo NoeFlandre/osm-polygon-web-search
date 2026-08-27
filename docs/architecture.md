@@ -5,7 +5,7 @@
 The proof of concept uses one complete local PBF rather than an online OSM
 query:
 
-    PBF → polygon candidates → name counts → unique candidate → query → pages → evidence
+    PBF → polygon candidates → name counts → unique candidate → query variants → pages → evidence
 
 Closed ways are accepted when they form a finite closed ring and are not tagged
 `area=no`. Relations are accepted only when pyosmium can assemble them as
@@ -23,14 +23,23 @@ called.
 
 ## Query and page processing
 
-The default query is the polygon name, the country derived from the PBF
-basename, and the exact phrase `landuse description`:
+Each query is the polygon name, the country derived from the PBF basename, and
+one approved keyword phrase. The variants are:
 
-    "Alpe Vermales" "Liechtenstein" "landuse description"
+    V1  "Alpe Vermales" "Liechtenstein" "land cover"
+    V2  "Alpe Vermales" "Liechtenstein" "land use"
+    V3  "Alpe Vermales" "Liechtenstein" vegetation
+    V4  "Alpe Vermales" "Liechtenstein" terrain
+    V5  "Alpe Vermales" "Liechtenstein" "soil surface"
+    V6  "Alpe Vermales" "Liechtenstein" ecosystem
+    V7  "Alpe Vermales" "Liechtenstein" "physical geography"
+    V8  "Alpe Vermales" "Liechtenstein" "buildings infrastructure"
+    V9  "Alpe Vermales" "Liechtenstein" "landscape environment"
 
-Live search retrieves up to five result pages per polygon by default. The
-`--results` option allows 1–20 pages; fewer may be returned when the provider
-has fewer results or a page fetch fails.
+Live search retrieves up to five result pages per variant by default when
+`--all-variants` is supplied. The `--results` option allows 1–20 pages per
+variant; fewer may be returned when the provider has fewer results or a page
+fetch fails.
 
 The search engine is accessed through a provider adapter. The first adapter is
 the [Brave Search API](https://brave.com/search/api/), using its JSON web-search

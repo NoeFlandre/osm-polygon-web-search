@@ -55,6 +55,22 @@ def test_main_runs_the_plan_command(monkeypatch, capsys) -> None:
     assert "runs/poc/run.json" in capsys.readouterr().out
 
 
+def test_main_runs_all_variant_mode(monkeypatch, capsys) -> None:
+    calls = []
+
+    def fake_run_poc(*args, **kwargs):
+        calls.append((args, kwargs))
+        return "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc/run.json"
+
+    monkeypatch.setattr("osm_polygon_web_search.__main__.run_poc", fake_run_poc)
+
+    main(["--all-variants", "--plan-only"])
+
+    assert calls[0][1]["all_variants"] is True
+    assert calls[0][1]["search"] is False
+    assert "runs/poc/run.json" in capsys.readouterr().out
+
+
 def test_main_rejects_conflicting_execution_modes() -> None:
     with pytest.raises(SystemExit):
         main(["--plan-only", "--search"])

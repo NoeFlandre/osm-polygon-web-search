@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -9,12 +9,12 @@ from .country import country_from_pbf
 from .data_root import data_root
 from .fetch import PageFetcher, PageProvider
 from .pbf import scan_pbf
-from .queries import build_query
+from .queries import QUERY_VARIANTS, build_query, build_variant_queries
 from .relevance import find_evidence
 from .search import BraveSearchProvider, SearchProvider
 
 DEFAULT_PBF = data_root() / "liechtenstein-latest.osm.pbf"
-DEFAULT_KEYWORDS = ("landuse description",)
+DEFAULT_KEYWORDS = ("land cover",)
 
 
 def ensure_data_path(path: Path) -> Path:
@@ -95,6 +95,26 @@ def build_plan(
     }
 
 
+def build_variant_plan(
+    pbf_path: Path,
+    *,
+    variants: Sequence[tuple[str, str]] = QUERY_VARIANTS,
+) -> dict[str, Any]:
+    """Build one candidate plan carrying the approved query variants."""
+    if not variants:
+        raise ValueError("at least one query variant is required")
+
+    plan = build_plan(pbf_path, keywords=(variants[0][1],))
+    selected = plan["selected"]
+    plan["query"] = None
+    plan["query_variants"] = (
+        build_variant_queries(selected["name_raw"], plan["country"], variants)
+        if isinstance(selected, dict)
+        else []
+    )
+    return plan
+
+
 def _search_records(
     plan: dict[str, Any],
     *,
@@ -121,6 +141,32 @@ def _search_records(
     return results
 
 
+def _search_variant_records(
+    plan: dict[str, Any],
+    *,
+    provider: SearchProvider,
+    fetcher: PageProvider,
+    result_count: int,
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for variant in plan["query_variants"]:
+        variant_plan = {**plan, "query": variant["query"]}
+        records.append(
+            {
+                "id": variant["id"],
+                "keyword": variant["keyword"],
+                "query": variant["query"],
+                "results": _search_records(
+                    variant_plan,
+                    provider=provider,
+                    fetcher=fetcher,
+                    result_count=result_count,
+                ),
+            }
+        )
+    return records
+
+
 def run_poc(
     pbf_path: Path,
     *,
@@ -128,16 +174,31 @@ def run_poc(
     keywords: Iterable[str] = DEFAULT_KEYWORDS,
     search: bool = False,
     result_count: int = 5,
+    all_variants: bool = False,
 ) -> Path:
     validated_pbf = ensure_data_path(pbf_path)
-    plan = build_plan(validated_pbf, keywords=keywords)
+    plan = (
+        build_variant_plan(validated_pbf)
+        if all_variants
+        else build_plan(validated_pbf, keywords=keywords)
+    )
     if search:
-        plan["results"] = _search_records(
-            plan,
-            provider=BraveSearchProvider(),
-            fetcher=PageFetcher(),
-            result_count=result_count,
-        )
+        provider = BraveSearchProvider()
+        fetcher = PageFetcher()
+        if all_variants:
+            plan["variant_results"] = _search_variant_records(
+                plan,
+                provider=provider,
+                fetcher=fetcher,
+                result_count=result_count,
+            )
+        else:
+            plan["results"] = _search_records(
+                plan,
+                provider=provider,
+                fetcher=fetcher,
+                result_count=result_count,
+            )
 
     destination = ensure_data_path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
