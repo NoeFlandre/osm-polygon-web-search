@@ -1,7 +1,9 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
+import pytest
 
 from osm_polygon_web_search.llm_relevance import RELEVANCE_MODEL_ID, RelevanceLabel
 from osm_polygon_web_search.relevance_dataset import (
@@ -14,11 +16,18 @@ from osm_polygon_web_search.relevance_dataset import (
 class FakeClassifier:
     def __init__(self, labels: dict[str, RelevanceLabel]) -> None:
         self.labels = labels
-        self.calls: list[str] = []
+        self.batch_calls: list[list[str]] = []
 
-    def classify(self, sentence: str) -> RelevanceLabel:
-        self.calls.append(sentence)
-        return self.labels[sentence]
+    def classify_many(self, sentences: Sequence[str]) -> list[RelevanceLabel]:
+        batch = list(sentences)
+        self.batch_calls.append(batch)
+        return [self.labels[sentence] for sentence in batch]
+
+
+class ShortClassifier:
+    def classify_many(self, sentences: Sequence[str]) -> list[RelevanceLabel]:
+        del sentences
+        return ["yes"]
 
 
 def test_classify_rows_preserves_context_and_skips_rows_without_sentences() -> None:
@@ -54,10 +63,39 @@ def test_classify_rows_preserves_context_and_skips_rows_without_sentences() -> N
             "relevance_model": RELEVANCE_MODEL_ID,
         },
     ]
-    assert classifier.calls == [
-        "A forest covers the slope.",
-        "The place was mentioned in 1840.",
+    assert classifier.batch_calls == [
+        [
+            "A forest covers the slope.",
+            "The place was mentioned in 1840.",
+        ]
     ]
+
+
+def test_classify_rows_splits_large_inputs_into_bounded_batches() -> None:
+    sentences = [f"Sentence {index}." for index in range(9)]
+    classifier = FakeClassifier(dict.fromkeys(sentences, "no"))
+
+    rows = classify_rows(
+        [
+            {"id": index, "sentence": sentence}
+            for index, sentence in enumerate(sentences)
+        ],
+        classifier,
+    )
+
+    assert len(rows) == 9
+    assert classifier.batch_calls == [sentences[:8], sentences[8:]]
+
+
+def test_classify_rows_rejects_a_batch_with_too_few_labels() -> None:
+    with pytest.raises(ValueError, match="shorter"):
+        classify_rows(
+            [
+                {"id": 1, "sentence": "A forest covers the slope."},
+                {"id": 2, "sentence": "A road crosses the valley."},
+            ],
+            ShortClassifier(),
+        )
 
 
 def test_relevant_rows_keeps_only_yes_labels() -> None:

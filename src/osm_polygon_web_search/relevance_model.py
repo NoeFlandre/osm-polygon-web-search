@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 
 from .llm_relevance import (
@@ -7,7 +8,7 @@ from .llm_relevance import (
     parse_relevance_output,
 )
 
-MAX_NEW_TOKENS = 128
+MAX_NEW_TOKENS = 1
 
 
 class LfmRelevanceClassifier:
@@ -19,11 +20,21 @@ class LfmRelevanceClassifier:
         self._torch = torch_module
 
     def classify(self, sentence: str, /) -> RelevanceLabel:
-        messages = [{"role": "user", "content": build_relevance_prompt(sentence)}]
+        return self.classify_many([sentence])[0]
+
+    def classify_many(self, sentences: Sequence[str], /) -> list[RelevanceLabel]:
+        messages = [
+            [
+                {"role": "user", "content": build_relevance_prompt(sentence)},
+                {"role": "assistant", "content": "</think>"},
+            ]
+            for sentence in sentences
+        ]
         inputs = self._tokenizer.apply_chat_template(
             messages,
-            add_generation_prompt=True,
+            continue_final_message=True,
             tokenize=True,
+            padding=True,
             return_dict=True,
             return_tensors="pt",
         )
@@ -34,13 +45,16 @@ class LfmRelevanceClassifier:
                 do_sample=False,
                 max_new_tokens=MAX_NEW_TOKENS,
             )
-        prompt_length = inputs["input_ids"].shape[-1]
-        generated_tokens = outputs[0][prompt_length:]
-        decoded = self._tokenizer.decode(
-            generated_tokens,
-            skip_special_tokens=True,
-        )
-        return parse_relevance_output(decoded)
+        prompt_length = inputs["input_ids"].shape[1]
+        return [
+            parse_relevance_output(
+                self._tokenizer.decode(
+                    generated_tokens[prompt_length:],
+                    skip_special_tokens=True,
+                )
+            )
+            for generated_tokens in outputs
+        ]
 
 
 def load_lfm_classifier() -> LfmRelevanceClassifier:
@@ -48,10 +62,12 @@ def load_lfm_classifier() -> LfmRelevanceClassifier:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    tokenizer = AutoTokenizer.from_pretrained(RELEVANCE_MODEL_ID)
+    tokenizer: Any = AutoTokenizer.from_pretrained(RELEVANCE_MODEL_ID)
+    tokenizer.padding_side = "left"
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
     model = AutoModelForCausalLM.from_pretrained(
         RELEVANCE_MODEL_ID,
-        device_map="auto",
+        device_map={"": device},
         dtype=torch.bfloat16,
     )
     return LfmRelevanceClassifier(tokenizer, model, torch)

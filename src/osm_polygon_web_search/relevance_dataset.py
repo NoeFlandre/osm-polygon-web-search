@@ -7,23 +7,32 @@ from .llm_relevance import RELEVANCE_MODEL_ID, RelevanceClassifier
 from .pipeline import ensure_data_path
 from .relevance_model import load_lfm_classifier
 
+CLASSIFICATION_BATCH_SIZE = 8
+
 
 def classify_rows(
     rows: Iterable[Mapping[str, Any]],
     classifier: RelevanceClassifier,
 ) -> list[dict[str, Any]]:
     """Add one strict local relevance label to every non-empty sentence row."""
-    classified: list[dict[str, Any]] = []
+    sentence_rows = []
     for row in rows:
         sentence = row.get("sentence")
         if not isinstance(sentence, str) or not sentence.strip():
             continue
-        classified.append(
+        sentence_rows.append(dict(row))
+
+    classified: list[dict[str, Any]] = []
+    for start in range(0, len(sentence_rows), CLASSIFICATION_BATCH_SIZE):
+        batch = sentence_rows[start : start + CLASSIFICATION_BATCH_SIZE]
+        labels = classifier.classify_many([row["sentence"] for row in batch])
+        classified.extend(
             {
                 **row,
-                "relevance_label": classifier.classify(sentence),
+                "relevance_label": label,
                 "relevance_model": RELEVANCE_MODEL_ID,
             }
+            for row, label in zip(batch, labels, strict=True)
         )
     return classified
 

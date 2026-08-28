@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Literal, Protocol, TypeAlias
 
 RELEVANCE_MODEL_ID = "LiquidAI/LFM2.5-2.6B"
@@ -22,7 +23,7 @@ RelevanceLabel: TypeAlias = Literal["yes", "no"]
 
 
 class RelevanceClassifier(Protocol):
-    def classify(self, sentence: str, /) -> RelevanceLabel: ...
+    def classify_many(self, sentences: Sequence[str], /) -> list[RelevanceLabel]: ...
 
 
 def build_relevance_prompt(sentence: str, /) -> str:
