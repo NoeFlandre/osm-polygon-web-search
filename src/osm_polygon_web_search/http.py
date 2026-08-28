@@ -1,0 +1,89 @@
+import time
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from typing import Any, cast
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+from .retry import wait_before_retry
+
+
+class HTTPRequestError(RuntimeError):
+    """Raised when an HTTP request cannot be completed."""
+
+
+@dataclass(frozen=True, slots=True)
+class HTTPResponse:
+    status: int
+    headers: Mapping[str, str]
+    payload: bytes
+    error: HTTPError | None
+
+
+def request_bytes(
+    request: Request,
+    *,
+    opener: Callable[..., Any] = urlopen,
+    timeout: float = 20.0,
+    max_retries: int = 2,
+    backoff_seconds: float = 1.0,
+    sleep: Callable[[float], None] = time.sleep,
+    read_limit: int | None = None,
+) -> HTTPResponse:
+    max_retries = max(0, max_retries)
+    for attempt in range(max_retries + 1):
+        response = _request_once(
+            request,
+            opener=opener,
+            timeout=timeout,
+            read_limit=read_limit,
+        )
+        if wait_before_retry(
+            response.status,
+            response.headers,
+            attempt=attempt,
+            max_retries=max_retries,
+            backoff_seconds=backoff_seconds,
+            sleep=sleep,
+        ):
+            continue
+        return response
+    raise HTTPRequestError(f"request retries exhausted for {request.full_url}")
+
+
+def _request_once(
+    request: Request,
+    *,
+    opener: Callable[..., Any],
+    timeout: float,
+    read_limit: int | None,
+) -> HTTPResponse:
+    try:
+        with opener(request, timeout=timeout) as response:
+            status = int(getattr(response, "status", 200))
+            headers = getattr(response, "headers", {})
+            payload = _read_payload(response, read_limit)
+    except HTTPError as error:
+        error_headers: Mapping[str, str] = (
+            cast(Mapping[str, str], error.headers) if error.headers is not None else {}
+        )
+        return HTTPResponse(
+            status=error.code,
+            headers=error_headers,
+            payload=b"",
+            error=error,
+        )
+    except (URLError, OSError) as error:
+        raise HTTPRequestError(
+            f"request failed for {request.full_url}: {error}"
+        ) from error
+    return HTTPResponse(
+        status=status,
+        headers=headers,
+        payload=payload,
+        error=None,
+    )
+
+
+def _read_payload(response: Any, read_limit: int | None) -> bytes:
+    return response.read(read_limit) if read_limit is not None else response.read()

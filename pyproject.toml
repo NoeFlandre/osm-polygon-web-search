@@ -69,6 +69,8 @@ only_mutate = [
   "src/osm_polygon_web_search/queries.py",
   "src/osm_polygon_web_search/pbf.py",
   "src/osm_polygon_web_search/relevance.py",
+  "src/osm_polygon_web_search/retry.py",
+  "src/osm_polygon_web_search/http.py",
 ]
 pytest_add_cli_args = ["-q"]
 pytest_add_cli_args_test_selection = ["--ignore=tests/test_repository_contracts.py"]

@@ -2,9 +2,9 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
-from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from .http import HTTPRequestError, request_bytes
 from .text import extract_text
 
 
@@ -57,47 +57,31 @@ class PageFetcher:
         if self.min_delay_seconds:
             self.sleep(self.min_delay_seconds)
 
-        for attempt in range(self.max_retries + 1):
-            try:
-                with self.opener(request, timeout=self.timeout) as response:
-                    status = int(getattr(response, "status", 200))
-                    headers = getattr(response, "headers", {})
-                    payload = response.read(self.max_bytes + 1)
-            except HTTPError as error:
-                if error.code in {429, 503} and attempt < self.max_retries:
-                    self.sleep(
-                        _retry_delay(error.headers, attempt, self.backoff_seconds)
-                    )
-                    continue
-                raise PageFetchError(
-                    f"page request failed for {url}: {error}"
-                ) from error
-            except (URLError, OSError) as error:
-                raise PageFetchError(
-                    f"page request failed for {url}: {error}"
-                ) from error
+        try:
+            response = request_bytes(
+                request,
+                opener=self.opener,
+                timeout=self.timeout,
+                max_retries=self.max_retries,
+                backoff_seconds=self.backoff_seconds,
+                sleep=self.sleep,
+                read_limit=self.max_bytes + 1,
+            )
+        except HTTPRequestError as error:
+            cause = error.__cause__ or error
+            raise PageFetchError(f"page request failed for {url}: {cause}") from error
 
-            if status in {429, 503} and attempt < self.max_retries:
-                self.sleep(_retry_delay(headers, attempt, self.backoff_seconds))
-                continue
-            if status < 200 or status >= 300:
-                raise PageFetchError(f"page request returned HTTP {status} for {url}")
-            break
-        else:  # pragma: no cover
-            raise PageFetchError(f"page request retries exhausted for {url}")
+        if response.error is not None:
+            raise PageFetchError(
+                f"page request failed for {url}: {response.error}"
+            ) from response.error
+        status = response.status
+        payload = response.payload
+        if status < 200 or status >= 300:
+            raise PageFetchError(f"page request returned HTTP {status} for {url}")
 
         if len(payload) > self.max_bytes:
             raise PageFetchError(f"page exceeded {self.max_bytes} bytes: {url}")
 
         html = payload.decode("utf-8", errors="replace")
         return FetchedPage(url=url, status=status, html=html, text=extract_text(html))
-
-
-def _retry_delay(headers: Any, attempt: int, backoff_seconds: float) -> float:
-    retry_after = headers.get("Retry-After") if headers is not None else None
-    if retry_after is not None:
-        try:
-            return max(0.0, float(retry_after))
-        except (TypeError, ValueError):
-            pass
-    return backoff_seconds * (2**attempt)

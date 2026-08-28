@@ -4,14 +4,12 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
-from osm_polygon_web_search.fetch import PageFetcher, PageFetchError, _retry_delay
+from osm_polygon_web_search.fetch import PageFetcher, PageFetchError
+from osm_polygon_web_search.retry import retry_delay
 from osm_polygon_web_search.search import (
     BraveSearchProvider,
     SearchProviderError,
     SearchResult,
-)
-from osm_polygon_web_search.search import (
-    _retry_delay as search_retry_delay,
 )
 
 
@@ -224,8 +222,8 @@ def test_page_fetcher_rejects_oversized_pages() -> None:
 
 
 def test_retry_delay_falls_back_to_exponential_backoff() -> None:
-    assert _retry_delay(None, 1, 2.0) == 4.0
-    assert _retry_delay({"Retry-After": "later"}, 1, 2.0) == 4.0
+    assert retry_delay(None, 1, 2.0) == 4.0
+    assert retry_delay({"Retry-After": "later"}, 1, 2.0) == 4.0
 
 
 def test_brave_provider_rejects_bad_json_and_http_errors() -> None:
@@ -278,4 +276,4 @@ def test_brave_provider_retries_a_rate_limited_response_status() -> None:
 
 
 def test_brave_retry_delay_falls_back_for_invalid_retry_after() -> None:
-    assert search_retry_delay({"Retry-After": "later"}, 1, 2.0) == 4.0
+    assert retry_delay({"Retry-After": "later"}, 1, 2.0) == 4.0

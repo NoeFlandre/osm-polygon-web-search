@@ -4,9 +4,10 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Protocol
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+
+from .http import HTTPRequestError, request_bytes
 
 
 class SearchProviderError(RuntimeError):
@@ -58,62 +59,49 @@ class BraveSearchProvider:
                 "X-Subscription-Token": self.api_key,
             },
         )
-        for attempt in range(self.max_retries + 1):
-            try:
-                with self.opener(request, timeout=self.timeout) as response:
-                    status = int(getattr(response, "status", 200))
-                    headers = getattr(response, "headers", {})
-                    payload = response.read()
-            except HTTPError as error:
-                if error.code in {429, 503} and attempt < self.max_retries:
-                    self.sleep(
-                        _retry_delay(error.headers, attempt, self.backoff_seconds)
-                    )
-                    continue
-                raise SearchProviderError(
-                    f"Brave search request failed: {error}"
-                ) from error
-            except (URLError, OSError) as error:
-                raise SearchProviderError(
-                    f"Brave search request failed: {error}"
-                ) from error
-
-            if status in {429, 503} and attempt < self.max_retries:
-                self.sleep(_retry_delay(headers, attempt, self.backoff_seconds))
-                continue
-            if status < 200 or status >= 300:
-                raise SearchProviderError(f"Brave search returned HTTP {status}")
-            break
-        else:  # pragma: no cover
-            raise SearchProviderError("Brave search retries exhausted")
-
         try:
-            data = json.loads(payload)
-        except (TypeError, ValueError) as error:
-            raise SearchProviderError("Brave search returned invalid JSON") from error
+            response = request_bytes(
+                request,
+                opener=self.opener,
+                timeout=self.timeout,
+                max_retries=self.max_retries,
+                backoff_seconds=self.backoff_seconds,
+                sleep=self.sleep,
+            )
+        except HTTPRequestError as error:
+            cause = error.__cause__ or error
+            raise SearchProviderError(
+                f"Brave search request failed: {cause}"
+            ) from error
 
-        raw_results = data.get("web", {}).get("results", [])
-        results: list[SearchResult] = []
-        for rank, raw in enumerate(raw_results, start=1):
-            title = str(raw.get("title", "")).strip()
-            url = str(raw.get("url", "")).strip()
-            if title and url:
-                results.append(
-                    SearchResult(
-                        rank=rank,
-                        title=title,
-                        url=url,
-                        snippet=str(raw.get("description", "")).strip(),
-                    )
+        if response.error is not None:
+            raise SearchProviderError(
+                f"Brave search request failed: {response.error}"
+            ) from response.error
+        if response.status < 200 or response.status >= 300:
+            raise SearchProviderError(f"Brave search returned HTTP {response.status}")
+
+        return _parse_results(response.payload)
+
+
+def _parse_results(payload: bytes) -> list[SearchResult]:
+    try:
+        data = json.loads(payload)
+    except (TypeError, ValueError) as error:
+        raise SearchProviderError("Brave search returned invalid JSON") from error
+
+    raw_results = data.get("web", {}).get("results", [])
+    results: list[SearchResult] = []
+    for rank, raw in enumerate(raw_results, start=1):
+        title = str(raw.get("title", "")).strip()
+        url = str(raw.get("url", "")).strip()
+        if title and url:
+            results.append(
+                SearchResult(
+                    rank=rank,
+                    title=title,
+                    url=url,
+                    snippet=str(raw.get("description", "")).strip(),
                 )
-        return results
-
-
-def _retry_delay(headers: Any, attempt: int, backoff_seconds: float) -> float:
-    retry_after = headers.get("Retry-After") if headers is not None else None
-    if retry_after is not None:
-        try:
-            return max(0.0, float(retry_after))
-        except (TypeError, ValueError):
-            pass
-    return backoff_seconds * (2**attempt)
+            )
+    return results
