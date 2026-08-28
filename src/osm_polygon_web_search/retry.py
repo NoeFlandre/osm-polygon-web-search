@@ -1,11 +1,15 @@
 import time
 from collections.abc import Callable, Mapping
+from email.message import Message
+from typing import TypeAlias
 
 _RETRYABLE_STATUS_CODES = frozenset({429, 503})
 
+HeaderValues: TypeAlias = Mapping[str, str] | Message
+
 
 def retry_delay(
-    headers: Mapping[str, str] | None,
+    headers: HeaderValues | None,
     attempt: int,
     backoff_seconds: float,
 ) -> float:
@@ -20,7 +24,7 @@ def retry_delay(
 
 def wait_before_retry(
     status: int,
-    headers: Mapping[str, str] | None,
+    headers: HeaderValues | None,
     *,
     attempt: int,
     max_retries: int,

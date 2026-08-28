@@ -1,11 +1,11 @@
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from .retry import wait_before_retry
+from .retry import HeaderValues, wait_before_retry
 
 
 class HTTPRequestError(RuntimeError):
@@ -15,7 +15,7 @@ class HTTPRequestError(RuntimeError):
 @dataclass(frozen=True, slots=True)
 class HTTPResponse:
     status: int
-    headers: Mapping[str, str]
+    headers: HeaderValues
     payload: bytes
     error: HTTPError | None
 
@@ -61,11 +61,11 @@ def _request_once(
     try:
         with opener(request, timeout=timeout) as response:
             status = int(getattr(response, "status", 200))
-            headers = getattr(response, "headers", {})
+            headers = cast(HeaderValues, getattr(response, "headers", {}))
             payload = _read_payload(response, read_limit)
     except HTTPError as error:
-        error_headers: Mapping[str, str] = (
-            cast(Mapping[str, str], error.headers) if error.headers is not None else {}
+        error_headers: HeaderValues = (
+            cast(HeaderValues, error.headers) if error.headers is not None else {}
         )
         return HTTPResponse(
             status=error.code,

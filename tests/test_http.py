@@ -1,3 +1,4 @@
+from email.message import Message
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
@@ -42,7 +43,7 @@ def test_request_bytes_retries_http_and_response_statuses() -> None:
         nonlocal attempts
         attempts += 1
         if attempts == 1:
-            raise HTTPError(request.full_url, 503, "busy", {}, None)
+            raise HTTPError(request.full_url, 503, "busy", Message(), None)
         if attempts == 2:
             return Response(b"busy", status=503)
         return Response(b"ready")
@@ -61,7 +62,7 @@ def test_request_bytes_retries_http_and_response_statuses() -> None:
 
 def test_request_bytes_returns_nonretryable_http_error() -> None:
     def opener(request, timeout):
-        raise HTTPError(request.full_url, 404, "missing", {}, None)
+        raise HTTPError(request.full_url, 404, "missing", Message(), None)
 
     result = request_bytes(
         Request("https://example.test"),
