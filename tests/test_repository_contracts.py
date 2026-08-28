@@ -103,3 +103,14 @@ def test_docs_workflow_builds_and_deploys_pages() -> None:
     assert "mkdocs build --strict" in text
     assert "upload-pages-artifact" in text
     assert "deploy-pages" in text
+
+
+def test_ruff_enforces_the_crap_complexity_ceiling() -> None:
+    text = (ROOT / "pyproject.toml").read_text()
+    assert 'select = ["B", "C4", "C90", "E", "F", "I", "SIM", "UP"]' in text
+    assert "max-complexity = 5" in text
+
+
+def test_dataset_card_matches_the_published_schema() -> None:
+    text = (ROOT / "dataset" / "README.md").read_text()
+    assert "`landuse`" not in text

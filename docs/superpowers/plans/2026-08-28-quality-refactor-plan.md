@@ -61,16 +61,28 @@ def test_retry_delay_uses_backoff_for_missing_or_invalid_header() -> None:
 def test_wait_before_retry_only_sleeps_for_retryable_attempts() -> None:
     sleeps: list[float] = []
     assert wait_before_retry(
-        503, headers("0"), attempt=0, max_retries=1,
-        backoff_seconds=2.0, sleep=sleeps.append,
+        503,
+        headers("0"),
+        attempt=0,
+        max_retries=1,
+        backoff_seconds=2.0,
+        sleep=sleeps.append,
     )
     assert not wait_before_retry(
-        500, headers("0"), attempt=0, max_retries=1,
-        backoff_seconds=2.0, sleep=sleeps.append,
+        500,
+        headers("0"),
+        attempt=0,
+        max_retries=1,
+        backoff_seconds=2.0,
+        sleep=sleeps.append,
     )
     assert not wait_before_retry(
-        503, headers("0"), attempt=1, max_retries=1,
-        backoff_seconds=2.0, sleep=sleeps.append,
+        503,
+        headers("0"),
+        attempt=1,
+        max_retries=1,
+        backoff_seconds=2.0,
+        sleep=sleeps.append,
     )
     assert sleeps == [0.0]
 ~~~
@@ -315,12 +327,18 @@ tests/test_candidates.py and add:
 ~~~python
 def test_selection_prefers_physical_landscape_tags_after_uniqueness() -> None:
     building = PolygonCandidate(
-        "way", 1, "A building", "a building",
+        "way",
+        1,
+        "A building",
+        "a building",
         {"name": "A building", "building": "yes"},
         {"type": "Polygon", "coordinates": []},
     )
     meadow = PolygonCandidate(
-        "way", 2, "B meadow", "b meadow",
+        "way",
+        2,
+        "B meadow",
+        "b meadow",
         {"name": "B meadow", "landuse": "meadow"},
         {"type": "Polygon", "coordinates": []},
     )

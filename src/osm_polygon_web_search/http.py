@@ -31,7 +31,8 @@ def request_bytes(
     read_limit: int | None = None,
 ) -> HTTPResponse:
     max_retries = max(0, max_retries)
-    for attempt in range(max_retries + 1):
+    attempt = 0
+    while True:
         response = _request_once(
             request,
             opener=opener,
@@ -46,9 +47,9 @@ def request_bytes(
             backoff_seconds=backoff_seconds,
             sleep=sleep,
         ):
+            attempt += 1
             continue
         return response
-    raise HTTPRequestError(f"request retries exhausted for {request.full_url}")
 
 
 def _request_once(

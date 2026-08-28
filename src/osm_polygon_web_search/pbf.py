@@ -2,6 +2,7 @@ import json
 import math
 from collections.abc import Iterable, Mapping
 from pathlib import Path
+from typing import Any
 
 import osmium
 import osmium.geom
@@ -56,36 +57,55 @@ def _candidate(
     )
 
 
+def _way_candidate(obj: Any) -> PolygonCandidate | None:
+    geometry = way_geometry(
+        ((node.lon, node.lat) for node in obj.nodes),
+        area_tag=obj.tags.get("area"),
+    )
+    return (
+        _candidate("way", obj.id, dict(obj.tags), geometry)
+        if geometry is not None
+        else None
+    )
+
+
+def _relation_geometry(factory: Any, obj: Any) -> dict[str, object] | None:
+    try:
+        geometry = json.loads(factory.create_multipolygon(obj))
+    except (TypeError, ValueError, RuntimeError):
+        return None
+    if not isinstance(geometry, dict) or not geometry.get("coordinates"):
+        return None
+    return geometry
+
+
+def _relation_candidate(obj: Any, factory: Any) -> PolygonCandidate | None:
+    if obj.from_way():
+        return None
+    tags = dict(obj.tags)
+    if not is_area_relation(tags):
+        return None
+    geometry = _relation_geometry(factory, obj)
+    if geometry is None:
+        return None
+    return _candidate("relation", obj.orig_id(), tags, geometry)
+
+
+def _object_candidate(obj: Any, factory: Any) -> PolygonCandidate | None:
+    if isinstance(obj, osmium.osm.Way):
+        return _way_candidate(obj)
+    if isinstance(obj, osmium.osm.Area):
+        return _relation_candidate(obj, factory)
+    return None
+
+
 def scan_pbf(path: Path) -> list[PolygonCandidate]:
     """Return named closed ways and assembled named area relations from a PBF."""
     factory = osmium.geom.GeoJSONFactory()
     candidates: list[PolygonCandidate] = []
 
     for obj in osmium.FileProcessor(str(path)).with_locations().with_areas():
-        if isinstance(obj, osmium.osm.Way):
-            geometry = way_geometry(
-                ((node.lon, node.lat) for node in obj.nodes),
-                area_tag=obj.tags.get("area"),
-            )
-            if geometry is not None:
-                item = _candidate("way", obj.id, dict(obj.tags), geometry)
-                if item is not None:
-                    candidates.append(item)
-            continue
-
-        if not isinstance(obj, osmium.osm.Area) or obj.from_way():
-            continue
-
-        tags = dict(obj.tags)
-        if not is_area_relation(tags):
-            continue
-        try:
-            geometry = json.loads(factory.create_multipolygon(obj))
-        except (TypeError, ValueError, RuntimeError):
-            continue
-        if not isinstance(geometry, dict) or not geometry.get("coordinates"):
-            continue
-        item = _candidate("relation", obj.orig_id(), tags, geometry)
+        item = _object_candidate(obj, factory)
         if item is not None:
             candidates.append(item)
 

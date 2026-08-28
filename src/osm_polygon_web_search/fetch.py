@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 from urllib.request import Request, urlopen
 
-from .http import HTTPRequestError, request_bytes
+from .http import HTTPRequestError, HTTPResponse, request_bytes
 from .text import extract_text
 
 
@@ -22,6 +22,18 @@ class FetchedPage:
 
 class PageProvider(Protocol):
     def fetch(self, url: str) -> FetchedPage: ...
+
+
+def _page_payload(response: HTTPResponse, url: str, max_bytes: int) -> bytes:
+    if response.error is not None:
+        raise PageFetchError(
+            f"page request failed for {url}: {response.error}"
+        ) from response.error
+    if response.status < 200 or response.status >= 300:
+        raise PageFetchError(f"page request returned HTTP {response.status} for {url}")
+    if len(response.payload) > max_bytes:
+        raise PageFetchError(f"page exceeded {max_bytes} bytes: {url}")
+    return response.payload
 
 
 class PageFetcher:
@@ -71,17 +83,11 @@ class PageFetcher:
             cause = error.__cause__ or error
             raise PageFetchError(f"page request failed for {url}: {cause}") from error
 
-        if response.error is not None:
-            raise PageFetchError(
-                f"page request failed for {url}: {response.error}"
-            ) from response.error
-        status = response.status
-        payload = response.payload
-        if status < 200 or status >= 300:
-            raise PageFetchError(f"page request returned HTTP {status} for {url}")
-
-        if len(payload) > self.max_bytes:
-            raise PageFetchError(f"page exceeded {self.max_bytes} bytes: {url}")
-
+        payload = _page_payload(response, url, self.max_bytes)
         html = payload.decode("utf-8", errors="replace")
-        return FetchedPage(url=url, status=status, html=html, text=extract_text(html))
+        return FetchedPage(
+            url=url,
+            status=response.status,
+            html=html,
+            text=extract_text(html),
+        )

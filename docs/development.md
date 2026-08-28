@@ -30,4 +30,9 @@ Trafilatura, CLI, and orchestration adapters remain covered by normal tests;
 they are not useful mutation targets without introducing brittle test seams.
 A partial run is reported as incomplete, not as a passing quality gate.
 
+Ruff's C90 gate caps cyclomatic complexity at 5. Together with the required
+100% line and branch coverage, this keeps each covered function's CRAP score
+below 6 (CRAP = complexity squared times uncovered-coverage cubed, plus
+complexity).
+
 The same commands are available through the justfile for local convenience.
