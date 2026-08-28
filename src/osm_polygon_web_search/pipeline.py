@@ -4,7 +4,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .candidates import PolygonCandidate, unique_candidates
+from .candidates import PolygonCandidate, select_candidate, unique_candidates
 from .country import country_from_pbf
 from .data_root import data_root
 from .fetch import PageFetcher, PageFetchError, PageProvider
@@ -38,37 +38,6 @@ def _candidate_record(candidate: PolygonCandidate) -> dict[str, Any]:
         "tags": dict(candidate.tags),
         "geometry": dict(candidate.geometry),
     }
-
-
-_PRIMARY_PHYSICAL_TAGS = (
-    "natural",
-    "water",
-    "landuse",
-    "geological",
-)
-_SECONDARY_PLACE_TAGS = ("leisure", "tourism", "man_made", "building")
-
-
-def select_candidate(candidates: list[PolygonCandidate]) -> PolygonCandidate | None:
-    if not candidates:
-        return None
-
-    def sort_key(item: PolygonCandidate) -> tuple[object, ...]:
-        if any(key in item.tags for key in _PRIMARY_PHYSICAL_TAGS):
-            tag_priority = 0
-        elif any(key in item.tags for key in _SECONDARY_PLACE_TAGS):
-            tag_priority = 1
-        else:
-            tag_priority = 2
-        return (
-            tag_priority,
-            len(item.name_raw) < 4,
-            item.name_key,
-            item.osm_type,
-            item.osm_id,
-        )
-
-    return min(candidates, key=sort_key)
 
 
 def build_plan(

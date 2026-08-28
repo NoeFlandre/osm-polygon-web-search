@@ -17,6 +17,37 @@ class PolygonCandidate:
         return self.osm_type, self.osm_id
 
 
+_PRIMARY_PHYSICAL_TAGS = (
+    "natural",
+    "water",
+    "landuse",
+    "geological",
+)
+_SECONDARY_PLACE_TAGS = ("leisure", "tourism", "man_made", "building")
+
+
+def select_candidate(candidates: list[PolygonCandidate]) -> PolygonCandidate | None:
+    if not candidates:
+        return None
+
+    def sort_key(item: PolygonCandidate) -> tuple[object, ...]:
+        if any(key in item.tags for key in _PRIMARY_PHYSICAL_TAGS):
+            tag_priority = 0
+        elif any(key in item.tags for key in _SECONDARY_PLACE_TAGS):
+            tag_priority = 1
+        else:
+            tag_priority = 2
+        return (
+            tag_priority,
+            len(item.name_raw) < 4,
+            item.name_key,
+            item.osm_type,
+            item.osm_id,
+        )
+
+    return min(candidates, key=sort_key)
+
+
 def unique_candidates(
     candidates: list[PolygonCandidate],
 ) -> list[PolygonCandidate]:
