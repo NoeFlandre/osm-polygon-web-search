@@ -4,7 +4,7 @@ from typing import cast
 import pytest
 
 import osm_polygon_web_search.pipeline as pipeline_module
-from osm_polygon_web_search.candidates import PolygonCandidate
+from osm_polygon_web_search.candidates import PolygonCandidate, select_candidate
 from osm_polygon_web_search.fetch import FetchedPage, PageFetchError, PageProvider
 from osm_polygon_web_search.names import normalize_name
 from osm_polygon_web_search.pipeline import (
@@ -14,6 +14,10 @@ from osm_polygon_web_search.pipeline import (
     run_poc,
 )
 from osm_polygon_web_search.search import SearchProvider, SearchResult
+
+
+def test_pipeline_reexports_select_candidate() -> None:
+    assert pipeline_module.select_candidate is select_candidate
 
 
 def test_build_plan_selects_one_unique_candidate_without_a_provider(
