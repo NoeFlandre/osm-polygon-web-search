@@ -1,6 +1,6 @@
 # Behavior-Preserving Quality Refactor Design
 
-**Date:** 2026-08-28  
+**Date:** 2026-08-28
 **Status:** Approved for implementation from the explicit refactor request
 
 ## Goal
