@@ -14,12 +14,15 @@ The initial layout is:
     runs/poc/run.json                   candidate, query variants, and review manifest
     runs/poc/hf-viewer/train.parquet   source one-row-per-page table
     runs/poc-20260828-sat-3l-sm/       sentence-level Viewer output
+    runs/poc-20260828-lfm2.5-2.6b-relevance/
+                                      complete labels and relevant-only Viewer output
 
 The PBF, raw HTML, and provider response remain on the Seagate. The explicitly
-approved sentence-level output is copied to Hugging Face as `train.parquet`; it
-contains one row per non-empty SAT sentence, polygon geometry, the exact Brave
-query, URL fields, full page text parsed by Trafilatura, sentence position and
-count, and the model identifier.
+approved sentence-level output is classified locally with
+`LiquidAI/LFM2.5-2.6B`. The complete yes/no table stays on the Seagate. Its
+relevant-only subset is copied to Hugging Face as `train.parquet`; it contains
+polygon geometry, the exact Brave query, URL fields, full page text parsed by
+Trafilatura, sentence position and count, SAT provenance, and LFM provenance.
 The published table omits extracted evidence and criteria. Raw HTML and
 provider responses are not published to GitHub or Hugging Face.
 The live search adapter is opt-in, and its credentials are read only from the

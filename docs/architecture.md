@@ -59,9 +59,10 @@ when the same sentence mentions the target place and one of these criteria:
 - visible buildings or infrastructure;
 - physical geographic setting, shape, position, or extent.
 
-The first classifier is a transparent lexical baseline. It produces evidence
-sentences and criterion labels rather than an unexplained binary score. A
-stronger classifier can later be added behind the same evidence contract.
+The original retrieval analysis also includes a transparent lexical baseline
+that produces evidence sentences and criterion labels. The current published
+table uses the local LFM yes/no classifier described below instead of exposing
+those baseline evidence fields.
 
 ### Sentence-level output
 
@@ -72,6 +73,16 @@ for provenance; `sentence`, `sentence_index`, `sentence_count`, and
 `sentence_model` expose the model output and its position. Empty extracted text
 produces no sentence row.
 
+### Local relevance classification
+
+The current downstream step sends each non-empty `sentence` to one local
+`LiquidAI/LFM2.5-2.6B` instance with the approved land-use/land-cover prompt.
+Generation is deterministic and the parser accepts only `yes` or `no` as the
+final answer, allowing the model's closing `</think>` wrapper. Any other
+output fails hard. The complete table adds `relevance_label` and
+`relevance_model` and remains on the Seagate; the Hugging Face `train.parquet`
+is the filtered `relevance_label == "yes"` subset.
+
 ## Network and scale controls
 
 The first run is sequential and plan-only by default. Live search requires
@@ -81,11 +92,12 @@ responses with `Retry-After` or exponential backoff, and applies sequential
 delays. Future batch execution should add provider budgets, per-host
 concurrency, URL deduplication, checkpointed jobs, and a content-addressed
 cache only when the provider terms permit storing responses. The approved
-Hugging Face table contains one row per sentence with polygon geometry, the
-exact Brave query, URL, full Trafilatura-parsed text, and sentence metadata for
-inspection. The published table omits extracted evidence and criteria. Raw HTML
-and provider responses are not published to Hugging Face.
+Hugging Face table contains relevant-only sentence rows with polygon geometry,
+the exact Brave query, URL, full Trafilatura-parsed text, sentence metadata,
+and model provenance for inspection. The published table omits extracted
+evidence and criteria. Raw HTML and provider responses are not published to
+Hugging Face.
 
 The POC intentionally does not introduce a queue, database server, browser
-automation, embeddings, or an LLM. The pure candidate, query, provider, fetch,
-and evidence boundaries are the scale seam.
+automation, or embeddings. The pure candidate, query, provider, fetch, SAT,
+and relevance boundaries are the scale seam.

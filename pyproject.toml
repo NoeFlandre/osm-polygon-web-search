@@ -13,7 +13,10 @@ authors = [{ name = "Noe Flandre" }]
 dependencies = [
   "osmium>=4.3.1",
   "pyarrow>=25.0.0",
+  "accelerate>=1.10.0",
   "trafilatura>=2.0.0",
+  "torch>=2.7.0",
+  "transformers>=5.0.0",
   "wtpsplit[onnx-cpu]>=2.2.0",
 ]
 
@@ -78,6 +81,9 @@ only_mutate = [
   "src/osm_polygon_web_search/http.py",
   "src/osm_polygon_web_search/sentences.py",
   "src/osm_polygon_web_search/sentence_dataset.py",
+  "src/osm_polygon_web_search/llm_relevance.py",
+  "src/osm_polygon_web_search/relevance_model.py",
+  "src/osm_polygon_web_search/relevance_dataset.py",
 ]
 pytest_add_cli_args = ["-q"]
 pytest_add_cli_args_test_selection = ["--ignore=tests/test_repository_contracts.py"]

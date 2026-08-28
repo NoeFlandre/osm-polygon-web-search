@@ -17,10 +17,13 @@ The approved first pipeline is deliberately small:
   1–20; `--all-variants` runs V1–V9);
 - extracts page text with Trafilatura and expands it into sentence-level rows
   with `segment-any-text/sat-3l-sm`;
+- classifies every sentence locally with `LiquidAI/LFM2.5-2.6B` using the
+  approved strict yes/no prompt;
 - all local and derived data stays on the Seagate volume;
-- the approved Hugging Face table includes polygon geometry, the exact Brave
-  query, URL, full parsed page text, and sentence-level fields; extracted
-  evidence and criteria, raw HTML, and provider responses are not published.
+- the approved Hugging Face table contains only `yes` sentences and includes
+  polygon geometry, the exact Brave query, URL, full parsed page text,
+  sentence-level fields, and model provenance; extracted evidence and criteria,
+  raw HTML, and provider responses are not published.
 
 Start with the [getting-started guide](getting-started.md), then read the
 [architecture](architecture.md) and [data policy](data-layout.md).

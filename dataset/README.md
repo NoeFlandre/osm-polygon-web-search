@@ -9,10 +9,12 @@ tags:
 # OSM Polygon Web Search
 
 This public Hugging Face dataset contains one explicitly approved POC table at
-`train.parquet`, with one row per non-empty SAT sentence. It is designed for the
-Hugging Face Dataset Viewer: the table exposes the polygon geometry, exact Brave
-query, page URL, title, HTTP status, full page text parsed by Trafilatura, and
-the sentence-level model output.
+`train.parquet`, with one row per non-empty SAT sentence classified as
+relevant-only by the local `LiquidAI/LFM2.5-2.6B` model. It is designed for the
+Hugging Face Dataset Viewer: the table exposes polygon geometry, the exact
+Brave query, page URL, title, HTTP status, full page text parsed by Trafilatura,
+the SAT sentence, and the strict relevance result. The complete yes/no
+classification table remains on the Seagate project volume.
 
 The rows cover nine query variants: V1 `land cover`, V2 `land use`, V3
 `vegetation`, V4 `terrain`, V5 `soil surface`, V6 `ecosystem`, V7 `physical
@@ -29,9 +31,12 @@ The table includes these main fields:
 | `text`, `text_char_count` | Full page text extracted by Trafilatura and its length |
 | `sentence`, `sentence_index`, `sentence_count` | SAT sentence and its position within the page |
 | `sentence_model` | `segment-any-text/sat-3l-sm` model identifier |
+| `relevance_label` | Local LFM classification; every published row is `yes` |
+| `relevance_model` | `LiquidAI/LFM2.5-2.6B` model identifier |
 
-The extracted evidence and criteria fields are intentionally omitted from this
-revision. The full parsed `text` remains available for inspection.
+The extracted evidence and criteria fields are intentionally omitted. The full
+parsed `text` remains available for inspection, while `sentence` is the
+primary downstream text unit.
 
 The source PBF and local working artifacts remain local. The uploaded table
 contains only the PBF basename in `source_pbf`, not a local filesystem path, and

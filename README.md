@@ -7,8 +7,9 @@ relations whose normalized name is unique within that PBF, derives the country
 from the PBF basename, builds nine place-scoped query variants for land cover,
 land use, vegetation, terrain, soil/surface, ecosystems, physical geography,
 buildings/infrastructure, and landscape/environment, and can optionally search
-Brave, extract page text with Trafilatura, and split it into sentence-level
-rows with `segment-any-text/sat-3l-sm`.
+Brave, extract page text with Trafilatura, split it into sentence-level rows
+with `segment-any-text/sat-3l-sm`, and classify each sentence locally with
+`LiquidAI/LFM2.5-2.6B`.
 
 ## Data policy
 
@@ -16,12 +17,13 @@ All local and derived data stays under:
 
     /Volumes/Seagate M3/projects/osm-polygon-web-search
 
-The local PBF, raw HTML, and provider response remain on the Seagate. An
-explicitly approved Hugging Face Viewer table contains one row per sentence,
+The local PBF, raw HTML, provider response, model cache, and complete yes/no
+classification table remain on the Seagate. The explicitly approved Hugging
+Face Viewer table contains only sentences classified `yes`, together with
 polygon geometry, the exact Brave query, URL, title, full Trafilatura-parsed
-page text, the sentence, its position, and the segmentation model. The
-published table omits extracted evidence and criteria. Raw HTML and provider
-responses are not published.
+page text, sentence position, SAT model, relevance label, and relevance model.
+The published table omits extracted evidence and criteria. Raw HTML and
+provider responses are not published.
 
 ## Development
 

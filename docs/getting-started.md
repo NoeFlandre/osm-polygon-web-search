@@ -55,6 +55,22 @@ The command loads `segment-any-text/sat-3l-sm` once, keeps the original page
 text in `text`, and emits one row per non-empty sentence with
 `sentence_index`, `sentence_count`, and `sentence_model`.
 
+To classify the existing sentence table locally and create both the complete
+yes/no artifact and the relevant-only Viewer artifact, run:
+
+    HF_HOME="/Volumes/Seagate M3/projects/osm-polygon-web-search/.hf-home-lfm" \
+    HF_HUB_CACHE="/Volumes/Seagate M3/projects/osm-polygon-web-search/.hf-hub-cache-lfm" \
+    TORCH_HOME="/Volumes/Seagate M3/projects/osm-polygon-web-search/.torch-home-lfm" \
+    uv run python scripts/classify_relevance.py \
+      --input "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc-20260828-sat-3l-sm/hf-viewer/train.parquet" \
+      --classified-output "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc-20260828-lfm2.5-2.6b-relevance/classified/train.parquet" \
+      --relevant-output "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc-20260828-lfm2.5-2.6b-relevance/hf-viewer/train.parquet"
+
+The LFM model is loaded once, generation is deterministic, and any output
+other than a single lowercase `yes` or `no` label fails the run. The full
+classification table stays on the Seagate; only `yes` rows are uploaded to
+Hugging Face.
+
 With live search enabled, the POC retrieves up to five result pages for the
 selected polygon in V1 mode. Add `--all-variants` to search all nine variants;
 use `--results N` to request between 1 and 20 pages per variant.
@@ -72,6 +88,6 @@ page](architecture.md) for query, rate-limit, and storage policy.
 
 The GitHub repository contains source and documentation. The Hugging Face
 dataset repository contains the explicitly approved Viewer-ready
-`train.parquet` table: one row per segmented sentence with polygon geometry, the
-exact Brave query, URL, full parsed page text, and sentence metadata. It never
-contains the local PBF, raw HTML, or provider response.
+`train.parquet` table: relevant-only rows with polygon geometry, the exact Brave
+query, URL, full parsed page text, sentence metadata, and LFM relevance
+provenance. It never contains the local PBF, raw HTML, or provider response.

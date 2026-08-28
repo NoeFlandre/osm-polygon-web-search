@@ -24,6 +24,10 @@ def test_dataset_card_describes_the_viewer_table_and_apache_license() -> None:
     assert "full page text" in text
     assert "sentence_model" in text
     assert "sentence_index" in text
+    assert "relevance_label" in text
+    assert "relevance_model" in text
+    assert "relevant-only" in text
+    assert "LiquidAI/LFM2.5-2.6B" in text
     assert "| `evidence`, `criteria` |" not in text
 
 
@@ -72,6 +76,8 @@ def test_public_docs_describe_the_approved_pbf_search_poc() -> None:
         "BRAVE_SEARCH_API_KEY",
         "sat-3l-sm",
         "sentence-level",
+        "LFM2.5-2.6B",
+        "relevance_label",
         "raw HTML",
         "full page text",
     ):

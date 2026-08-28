@@ -15,6 +15,11 @@ the [`wtpsplit`](https://github.com/segment-any-text/wtpsplit) implementation.
 The upstream model and implementation are MIT-licensed; their terms remain
 separate from this project's Apache-2.0 license.
 
+The relevance step uses the local
+[`LiquidAI/LFM2.5-2.6B`](https://huggingface.co/LiquidAI/LFM2.5-2.6B) model.
+Its model license and usage terms remain separate from this project's
+Apache-2.0 license.
+
 ## License
 
 The project code, documentation, and original metadata are available under
