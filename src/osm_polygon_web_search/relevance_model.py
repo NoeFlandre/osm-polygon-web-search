@@ -8,7 +8,14 @@ from .llm_relevance import (
     parse_relevance_output,
 )
 
-MAX_NEW_TOKENS = 1
+LOGITS_TO_KEEP = 1
+
+
+def _resolve_single_token_id(tokenizer: Any, label: RelevanceLabel, /) -> int:
+    token_ids = tokenizer.encode(label, add_special_tokens=False)
+    if len(token_ids) != 1:
+        raise ValueError(f"{label!r} must encode as exactly one token")
+    return token_ids[0]
 
 
 class LfmRelevanceClassifier:
@@ -18,6 +25,8 @@ class LfmRelevanceClassifier:
         self._tokenizer = tokenizer
         self._model = model
         self._torch = torch_module
+        self._yes_token_id = _resolve_single_token_id(tokenizer, "yes")
+        self._no_token_id = _resolve_single_token_id(tokenizer, "no")
 
     def classify(self, sentence: str, /) -> RelevanceLabel:
         return self.classify_many([sentence])[0]
@@ -40,20 +49,23 @@ class LfmRelevanceClassifier:
         )
         inputs = inputs.to(self._model.device)
         with self._torch.inference_mode():
-            outputs = self._model.generate(
+            outputs = self._model(
                 **inputs,
-                do_sample=False,
-                max_new_tokens=MAX_NEW_TOKENS,
+                logits_to_keep=LOGITS_TO_KEEP,
+                use_cache=False,
             )
-        prompt_length = inputs["input_ids"].shape[1]
+        yes_scores = outputs.logits[:, -1, self._yes_token_id].tolist()
+        no_scores = outputs.logits[:, -1, self._no_token_id].tolist()
+        if len(yes_scores) != len(no_scores):
+            raise ValueError("model returned inconsistent score batches")
+        expected_batch_size = inputs["input_ids"].shape[0]
+        if len(yes_scores) != expected_batch_size:
+            raise ValueError("model output batch does not match input batch")
         return [
             parse_relevance_output(
-                self._tokenizer.decode(
-                    generated_tokens[prompt_length:],
-                    skip_special_tokens=True,
-                )
+                "yes" if yes_scores[index] > no_scores[index] else "no"
             )
-            for generated_tokens in outputs
+            for index in range(len(yes_scores))
         ]
 
 

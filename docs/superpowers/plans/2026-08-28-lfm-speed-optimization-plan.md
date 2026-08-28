@@ -79,8 +79,8 @@ Expected: the 17-row batch-size expectation fails while production still uses
 
 - [ ] **Step 3: Implement the bounded batch-size change**
 
-Set `CLASSIFICATION_BATCH_SIZE = 16` and leave the strict `zip(...,
-strict=True)` length check unchanged.
+Set `CLASSIFICATION_BATCH_SIZE = 16` and preserve the explicit model-output
+length checks before zipping the two equal-length score lists.
 
 - [ ] **Step 4: Run focused tests and the real 16-sentence smoke**
 

@@ -72,7 +72,7 @@ def test_classify_rows_preserves_context_and_skips_rows_without_sentences() -> N
 
 
 def test_classify_rows_splits_large_inputs_into_bounded_batches() -> None:
-    sentences = [f"Sentence {index}." for index in range(9)]
+    sentences = [f"Sentence {index}." for index in range(17)]
     classifier = FakeClassifier(dict.fromkeys(sentences, "no"))
 
     rows = classify_rows(
@@ -83,8 +83,8 @@ def test_classify_rows_splits_large_inputs_into_bounded_batches() -> None:
         classifier,
     )
 
-    assert len(rows) == 9
-    assert classifier.batch_calls == [sentences[:8], sentences[8:]]
+    assert len(rows) == 17
+    assert classifier.batch_calls == [sentences[:16], sentences[16:]]
 
 
 def test_classify_rows_rejects_a_batch_with_too_few_labels() -> None:
