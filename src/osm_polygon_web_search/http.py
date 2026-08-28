@@ -1,7 +1,7 @@
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -31,15 +31,14 @@ def request_bytes(
     read_limit: int | None = None,
 ) -> HTTPResponse:
     max_retries = max(0, max_retries)
-    attempt = 0
-    while True:
-        response = _request_once(
-            request,
-            opener=opener,
-            timeout=timeout,
-            read_limit=read_limit,
-        )
-        if wait_before_retry(
+    response = _request_once(
+        request,
+        opener=opener,
+        timeout=timeout,
+        read_limit=read_limit,
+    )
+    for attempt in range(max_retries):
+        if not wait_before_retry(
             response.status,
             response.headers,
             attempt=attempt,
@@ -47,9 +46,14 @@ def request_bytes(
             backoff_seconds=backoff_seconds,
             sleep=sleep,
         ):
-            attempt += 1
-            continue
-        return response
+            return response
+        response = _request_once(
+            request,
+            opener=opener,
+            timeout=timeout,
+            read_limit=read_limit,
+        )
+    return response
 
 
 def _request_once(
@@ -62,12 +66,10 @@ def _request_once(
     try:
         with opener(request, timeout=timeout) as response:
             status = int(getattr(response, "status", 200))
-            headers = cast(HeaderValues, getattr(response, "headers", {}))
+            headers = getattr(response, "headers", {})
             payload = _read_payload(response, read_limit)
     except HTTPError as error:
-        error_headers: HeaderValues = (
-            cast(HeaderValues, error.headers) if error.headers is not None else {}
-        )
+        error_headers: HeaderValues = error.headers if error.headers is not None else {}
         return HTTPResponse(
             status=error.code,
             headers=error_headers,

@@ -102,3 +102,10 @@ def test_selection_uses_stable_order_for_unclassified_candidates() -> None:
     )
 
     assert select_candidate([first, second]) is second
+
+
+def test_selection_prioritizes_names_longer_than_three_characters() -> None:
+    longer = candidate("way", 1, "Alps")
+    shorter = candidate("way", 2, "Alp")
+
+    assert select_candidate([shorter, longer]) is longer

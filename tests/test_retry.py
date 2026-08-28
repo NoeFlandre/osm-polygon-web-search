@@ -12,6 +12,7 @@ def headers(value: str | None = None) -> Message:
 
 def test_retry_delay_prefers_valid_retry_after() -> None:
     assert retry_delay(headers("3"), 1, 2.0) == 3.0
+    assert retry_delay({"Retry-After": "3"}, 1, 2.0) == 3.0
 
 
 def test_retry_delay_uses_backoff_for_missing_or_invalid_header() -> None:

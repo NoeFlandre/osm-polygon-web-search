@@ -31,14 +31,9 @@ def select_candidate(candidates: list[PolygonCandidate]) -> PolygonCandidate | N
         return None
 
     def sort_key(item: PolygonCandidate) -> tuple[object, ...]:
-        if any(key in item.tags for key in _PRIMARY_PHYSICAL_TAGS):
-            tag_priority = 0
-        elif any(key in item.tags for key in _SECONDARY_PLACE_TAGS):
-            tag_priority = 1
-        else:
-            tag_priority = 2
         return (
-            tag_priority,
+            not any(key in item.tags for key in _PRIMARY_PHYSICAL_TAGS),
+            not any(key in item.tags for key in _SECONDARY_PLACE_TAGS),
             len(item.name_raw) < 4,
             item.name_key,
             item.osm_type,
