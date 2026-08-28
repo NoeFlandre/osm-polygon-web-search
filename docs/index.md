@@ -15,11 +15,12 @@ The approved first pipeline is deliberately small:
 - uses a Brave Search API adapter for opt-in live queries;
 - retrieves up to five result pages per variant by default (`--results` accepts
   1–20; `--all-variants` runs V1–V9);
-- extracts page text with Trafilatura and records criterion-level evidence;
+- extracts page text with Trafilatura and expands it into sentence-level rows
+  with `segment-any-text/sat-3l-sm`;
 - all local and derived data stays on the Seagate volume;
 - the approved Hugging Face table includes polygon geometry, the exact Brave
-  query, URL, and full parsed text; extracted evidence and criteria, raw HTML,
-  and provider responses are not published.
+  query, URL, full parsed page text, and sentence-level fields; extracted
+  evidence and criteria, raw HTML, and provider responses are not published.
 
 Start with the [getting-started guide](getting-started.md), then read the
 [architecture](architecture.md) and [data policy](data-layout.md).

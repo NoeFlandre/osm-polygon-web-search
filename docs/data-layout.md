@@ -12,12 +12,14 @@ The initial layout is:
 
     liechtenstein-latest.osm.pbf       immutable source snapshot
     runs/poc/run.json                   candidate, query variants, and review manifest
-    runs/poc/hf-viewer/train.parquet   Viewer-ready one-row-per-page table
+    runs/poc/hf-viewer/train.parquet   source one-row-per-page table
+    runs/poc-20260828-sat-3l-sm/       sentence-level Viewer output
 
 The PBF, raw HTML, and provider response remain on the Seagate. The explicitly
-approved `runs/poc/hf-viewer/train.parquet` table is copied to Hugging Face as
-`train.parquet`; it contains one row per fetched page, polygon geometry, the
-exact Brave query, URL fields, and full page text parsed by Trafilatura.
+approved sentence-level output is copied to Hugging Face as `train.parquet`; it
+contains one row per non-empty SAT sentence, polygon geometry, the exact Brave
+query, URL fields, full page text parsed by Trafilatura, sentence position and
+count, and the model identifier.
 The published table omits extracted evidence and criteria. Raw HTML and
 provider responses are not published to GitHub or Hugging Face.
 The live search adapter is opt-in, and its credentials are read only from the

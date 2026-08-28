@@ -44,6 +44,17 @@ The nine variants are V1 `land cover`, V2 `land use`, V3 `vegetation`, V4
 `terrain`, V5 `soil surface`, V6 `ecosystem`, V7 `physical geography`, V8
 `buildings infrastructure`, and V9 `landscape environment`.
 
+To create a sentence-level Viewer table from the approved POC parquet, run:
+
+    HF_HOME="/Volumes/Seagate M3/projects/osm-polygon-web-search/.hf-home" \
+    uv run python scripts/segment_dataset.py \
+      --input "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc-20260827-stausee-steg-no-landuse/hf-viewer/train.parquet" \
+      --output "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc-20260828-sat-3l-sm/hf-viewer/train.parquet"
+
+The command loads `segment-any-text/sat-3l-sm` once, keeps the original page
+text in `text`, and emits one row per non-empty sentence with
+`sentence_index`, `sentence_count`, and `sentence_model`.
+
 With live search enabled, the POC retrieves up to five result pages for the
 selected polygon in V1 mode. Add `--all-variants` to search all nine variants;
 use `--results N` to request between 1 and 20 pages per variant.
@@ -61,6 +72,6 @@ page](architecture.md) for query, rate-limit, and storage policy.
 
 The GitHub repository contains source and documentation. The Hugging Face
 dataset repository contains the explicitly approved Viewer-ready
-`train.parquet` table: one row per fetched page with polygon geometry, the exact
-Brave query, URL, and full parsed text. It never contains the local PBF, raw
-HTML, or provider response.
+`train.parquet` table: one row per segmented sentence with polygon geometry, the
+exact Brave query, URL, full parsed page text, and sentence metadata. It never
+contains the local PBF, raw HTML, or provider response.

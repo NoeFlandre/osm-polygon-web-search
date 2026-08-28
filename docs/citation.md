@@ -9,6 +9,12 @@ If you use the project, cite it as:
 
     Flandre, Noe. OSM Polygon Web Search. Version 0.1.0. 2026.
 
+The sentence-level table uses the SAT-3L-SM model from the
+[Segment Any Text paper](https://aclanthology.org/2024.emnlp-main.665/) and
+the [`wtpsplit`](https://github.com/segment-any-text/wtpsplit) implementation.
+The upstream model and implementation are MIT-licensed; their terms remain
+separate from this project's Apache-2.0 license.
+
 ## License
 
 The project code, documentation, and original metadata are available under

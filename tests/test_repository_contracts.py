@@ -22,6 +22,8 @@ def test_dataset_card_describes_the_viewer_table_and_apache_license() -> None:
     assert "exact Brave" in text
     assert "raw HTML" in text
     assert "full page text" in text
+    assert "sentence_model" in text
+    assert "sentence_index" in text
     assert "| `evidence`, `criteria` |" not in text
 
 
@@ -68,6 +70,8 @@ def test_public_docs_describe_the_approved_pbf_search_poc() -> None:
         "Liechtenstein",
         "Trafilatura",
         "BRAVE_SEARCH_API_KEY",
+        "sat-3l-sm",
+        "sentence-level",
         "raw HTML",
         "full page text",
     ):

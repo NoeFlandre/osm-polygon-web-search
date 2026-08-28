@@ -5,7 +5,7 @@
 The proof of concept uses one complete local PBF rather than an online OSM
 query:
 
-    PBF → polygon candidates → name counts → unique candidate → query variants → pages → evidence
+    PBF → polygon candidates → name counts → unique candidate → query variants → pages → Trafilatura text → SAT sentence rows
 
 Closed ways are accepted when they form a finite closed ring and are not tagged
 `area=no`. Relations are accepted only when pyosmium can assemble them as
@@ -63,6 +63,15 @@ The first classifier is a transparent lexical baseline. It produces evidence
 sentences and criterion labels rather than an unexplained binary score. A
 stronger classifier can later be added behind the same evidence contract.
 
+### Sentence-level output
+
+The approved Viewer transformation loads `segment-any-text/sat-3l-sm` through
+`wtpsplit` once and segments every non-empty Trafilatura page text. Each
+sentence becomes one output row. The original full page text remains in `text`
+for provenance; `sentence`, `sentence_index`, `sentence_count`, and
+`sentence_model` expose the model output and its position. Empty extracted text
+produces no sentence row.
+
 ## Network and scale controls
 
 The first run is sequential and plan-only by default. Live search requires
@@ -72,10 +81,10 @@ responses with `Retry-After` or exponential backoff, and applies sequential
 delays. Future batch execution should add provider budgets, per-host
 concurrency, URL deduplication, checkpointed jobs, and a content-addressed
 cache only when the provider terms permit storing responses. The approved
-Hugging Face table contains polygon geometry, the exact Brave query, URL, and
-full Trafilatura-parsed text for inspection. The published table omits
-extracted evidence and criteria. Raw HTML and provider responses are not
-published to Hugging Face.
+Hugging Face table contains one row per sentence with polygon geometry, the
+exact Brave query, URL, full Trafilatura-parsed text, and sentence metadata for
+inspection. The published table omits extracted evidence and criteria. Raw HTML
+and provider responses are not published to Hugging Face.
 
 The POC intentionally does not introduce a queue, database server, browser
 automation, embeddings, or an LLM. The pure candidate, query, provider, fetch,
