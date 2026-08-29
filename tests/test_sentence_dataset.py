@@ -4,7 +4,11 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from osm_polygon_web_search.sentence_dataset import sentence_rows, transform_parquet
+from osm_polygon_web_search.sentence_dataset import (
+    _sentence_table,
+    sentence_rows,
+    transform_parquet,
+)
 from osm_polygon_web_search.sentences import SAT_MODEL_ID
 
 
@@ -283,6 +287,17 @@ def test_transform_parquet_preserves_source_schema_for_empty_output(
     assert output.schema.field("sentence_index").type == pa.int64()
     assert output.schema.field("sentence_count").type == pa.int64()
     assert output.schema.field("sentence_model").type == pa.string()
+
+
+def test_sentence_table_rejects_a_short_segmentation_result(monkeypatch) -> None:
+    source = pa.table({"text": pa.array(["One.", "Two!"])})
+    monkeypatch.setattr(
+        "osm_polygon_web_search.sentence_dataset._segment_page_texts",
+        lambda texts, model: [["One."]],
+    )
+
+    with pytest.raises(ValueError, match="argument 2 is shorter"):
+        _sentence_table(source, object())
 
 
 def test_transform_parquet_allows_an_existing_output_directory(

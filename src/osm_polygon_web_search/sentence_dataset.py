@@ -30,7 +30,7 @@ def _segment_page_texts(
         raise ValueError("batched sentence model must return one result per text")
     unique_groups = [_clean_segments(segments) for segments in grouped]
 
-    groups_by_text = dict(zip(unique_texts, unique_groups, strict=True))
+    groups_by_text = dict(zip(unique_texts, unique_groups))
     return [groups_by_text[text] for text in texts]
 
 
@@ -87,11 +87,7 @@ def _sentence_table(source: Any, model: SentenceModel) -> Any:
         sentence_indices.extend(range(count))
         sentence_counts.extend([count] * count)
 
-    selected = (
-        source.take(pa.array(repeated_indices, type=pa.int64()))
-        if repeated_indices
-        else source.slice(0, 0)
-    )
+    selected = source.take(pa.array(repeated_indices, type=pa.int64()))
     return (
         selected.append_column(
             "sentence",

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from osm_polygon_web_search.sentences import (
     SAT_MODEL_ID,
     SAT_MODEL_NAME,
+    SatSentenceModel,
     load_sat_model,
     split_sentences,
 )
@@ -27,6 +28,42 @@ def test_split_sentences_trims_and_discards_empty_model_segments() -> None:
         "Second sentence!",
     ]
     assert model.inputs == ["page text"]
+
+
+def test_sat_sentence_model_forwards_scalar_text() -> None:
+    calls: list[object] = []
+
+    class Model:
+        def split(self, text: object) -> list[object]:
+            calls.append(text)
+            return [text]
+
+    adapter = SatSentenceModel(Model())
+
+    assert list(adapter.split("page text")) == ["page text"]
+    assert calls == ["page text"]
+
+
+def test_sat_sentence_model_forwards_batched_texts_and_settings() -> None:
+    calls: list[tuple[object, dict[str, int]]] = []
+
+    class Model:
+        def split(self, texts: object, **kwargs: int) -> list[list[object]]:
+            calls.append((texts, kwargs))
+            return [[text] for text in texts]
+
+    adapter = SatSentenceModel(Model())
+
+    assert [list(group) for group in adapter.split_many(("one", "two"))] == [
+        ["one"],
+        ["two"],
+    ]
+    assert calls == [
+        (
+            ["one", "two"],
+            {"batch_size": 32, "outer_batch_size": 1000},
+        )
+    ]
 
 
 def test_load_sat_model_uses_the_approved_model_name(monkeypatch) -> None:
