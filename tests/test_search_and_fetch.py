@@ -1,10 +1,17 @@
 import json
+import threading
+import time
 from email.message import Message
 from urllib.error import HTTPError, URLError
 
 import pytest
 
-from osm_polygon_web_search.fetch import PageFetcher, PageFetchError
+from osm_polygon_web_search.fetch import (
+    FetchedPage,
+    PageFetcher,
+    PageFetchError,
+    fetch_pages,
+)
 from osm_polygon_web_search.retry import retry_delay
 from osm_polygon_web_search.search import (
     BraveSearchProvider,
@@ -219,6 +226,90 @@ def test_page_fetcher_rejects_oversized_pages() -> None:
             opener=lambda request, timeout: FakeResponse(b"12345"),
             max_bytes=4,
         ).fetch("https://example.test/large")
+
+
+def test_fetch_pages_deduplicates_urls_and_reuses_successful_cache() -> None:
+    calls: list[str] = []
+
+    class Fetcher:
+        min_delay_seconds = 0.0
+
+        def fetch(self, url: str) -> FetchedPage:
+            calls.append(url)
+            return FetchedPage(url, 200, "", f"text for {url}")
+
+    cache: dict[str, FetchedPage] = {}
+    fetcher = Fetcher()
+
+    assert list(
+        fetch_pages(
+            fetcher,
+            [
+                "https://example.test/one",
+                "https://example.test/two",
+                "https://example.test/one",
+            ],
+            cache=cache,
+        )
+    ) == ["https://example.test/one", "https://example.test/two"]
+    fetch_pages(fetcher, ["https://example.test/two"], cache=cache)
+
+    assert calls == [
+        "https://example.test/one",
+        "https://example.test/two",
+    ]
+
+
+def test_fetch_pages_keeps_provider_order_with_bounded_concurrency() -> None:
+    active = 0
+    peak = 0
+    lock = threading.Lock()
+
+    class Fetcher:
+        min_delay_seconds = 0.0
+
+        def fetch(self, url: str) -> FetchedPage:
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            time.sleep(0.02 if url.endswith("one") else 0.01)
+            with lock:
+                active -= 1
+            return FetchedPage(url, 200, "", url)
+
+    urls = [f"https://example.test/{name}" for name in ("one", "two", "three", "four")]
+
+    pages = fetch_pages(Fetcher(), urls)
+
+    assert list(pages) == urls
+    assert peak == 4
+
+
+def test_fetch_pages_does_not_cache_failed_urls() -> None:
+    attempts = 0
+
+    class Fetcher:
+        min_delay_seconds = 0.0
+
+        def fetch(self, url: str) -> FetchedPage:
+            nonlocal attempts
+            attempts += 1
+            raise PageFetchError(f"cannot fetch {url}")
+
+    cache: dict[str, FetchedPage] = {}
+    fetcher = Fetcher()
+
+    assert fetch_pages(fetcher, ["https://example.test/fail"], cache=cache) == {}
+    assert fetch_pages(fetcher, ["https://example.test/fail"], cache=cache) == {}
+
+    assert attempts == 2
+    assert cache == {}
+
+
+def test_fetch_pages_requires_a_positive_worker_count() -> None:
+    with pytest.raises(ValueError, match="max_workers"):
+        fetch_pages(object(), [], max_workers=0)
 
 
 def test_retry_delay_falls_back_to_exponential_backoff() -> None:

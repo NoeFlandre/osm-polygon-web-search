@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, MutableMapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -7,7 +7,13 @@ from typing import Any
 from .candidates import PolygonCandidate, select_candidate, unique_candidates
 from .country import country_from_pbf
 from .data_root import data_root
-from .fetch import PageFetcher, PageFetchError, PageProvider
+from .fetch import (
+    PAGE_FETCH_WORKERS,
+    FetchedPage,
+    PageFetcher,
+    PageProvider,
+    fetch_pages,
+)
 from .pbf import scan_pbf
 from .queries import QUERY_VARIANTS, build_query, build_variant_queries
 from .relevance import find_evidence
@@ -90,17 +96,26 @@ def _search_records(
     provider: SearchProvider,
     fetcher: PageProvider,
     result_count: int,
+    page_cache: MutableMapping[str, FetchedPage] | None = None,
 ) -> list[dict[str, Any]]:
     query = plan["query"]
     selected = plan["selected"]
     if not isinstance(query, str) or not isinstance(selected, dict):
         return []
 
+    search_results = list(provider.search(query, count=result_count))
+    pages = fetch_pages(
+        fetcher,
+        [result.url for result in search_results],
+        cache=page_cache,
+        max_workers=(
+            1 if getattr(fetcher, "min_delay_seconds", 0.0) > 0 else PAGE_FETCH_WORKERS
+        ),
+    )
     results: list[dict[str, Any]] = []
-    for result in provider.search(query, count=result_count):
-        try:
-            page = fetcher.fetch(result.url)
-        except PageFetchError:
+    for result in search_results:
+        page = pages.get(result.url)
+        if page is None:
             continue
         evidence = find_evidence(page.text or "", place_name=selected["name_raw"])
         results.append(
@@ -121,6 +136,7 @@ def _search_variant_records(
     result_count: int,
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
+    page_cache: dict[str, FetchedPage] = {}
     for variant in plan["query_variants"]:
         variant_plan = {**plan, "query": variant["query"]}
         records.append(
@@ -133,6 +149,7 @@ def _search_variant_records(
                     provider=provider,
                     fetcher=fetcher,
                     result_count=result_count,
+                    page_cache=page_cache,
                 ),
             }
         )

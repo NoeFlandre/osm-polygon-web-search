@@ -1,6 +1,8 @@
 import time
-from collections.abc import Callable
+from collections.abc import Callable, MutableMapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from functools import partial
 from typing import Any, Protocol
 from urllib.request import Request, urlopen
 
@@ -22,6 +24,50 @@ class FetchedPage:
 
 class PageProvider(Protocol):
     def fetch(self, url: str) -> FetchedPage: ...
+
+
+PAGE_FETCH_WORKERS = 4
+
+
+def _fetch_or_skip(fetcher: PageProvider, url: str) -> FetchedPage | None:
+    try:
+        return fetcher.fetch(url)
+    except PageFetchError:
+        return None
+
+
+def _fetch_missing(
+    fetcher: PageProvider,
+    urls: Sequence[str],
+    max_workers: int,
+) -> list[FetchedPage | None]:
+    if len(urls) < 2 or max_workers == 1:
+        return [_fetch_or_skip(fetcher, url) for url in urls]
+
+    worker_count = min(max_workers, len(urls))
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        return list(executor.map(partial(_fetch_or_skip, fetcher), urls))
+
+
+def fetch_pages(
+    fetcher: PageProvider,
+    urls: Sequence[str],
+    *,
+    cache: MutableMapping[str, FetchedPage] | None = None,
+    max_workers: int = PAGE_FETCH_WORKERS,
+) -> dict[str, FetchedPage]:
+    """Fetch unique URLs concurrently and return successful pages in URL order."""
+    if max_workers < 1:
+        raise ValueError("max_workers must be at least 1")
+
+    pages = {} if cache is None else cache
+    unique_urls = list(dict.fromkeys(urls))
+    missing_urls = [url for url in unique_urls if url not in pages]
+    fetched = _fetch_missing(fetcher, missing_urls, max_workers)
+    for url, page in zip(missing_urls, fetched, strict=True):
+        if page is not None:
+            pages[url] = page
+    return {url: pages[url] for url in unique_urls if url in pages}
 
 
 def _page_payload(response: HTTPResponse, url: str, max_bytes: int) -> bytes:

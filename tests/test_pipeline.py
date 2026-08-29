@@ -259,7 +259,7 @@ def test_search_records_skips_pages_that_cannot_be_fetched() -> None:
 def test_search_variant_records_runs_each_query_variant(monkeypatch) -> None:
     calls = []
 
-    def fake_search_records(plan, *, provider, fetcher, result_count):
+    def fake_search_records(plan, *, provider, fetcher, result_count, page_cache=None):
         calls.append((plan["query"], result_count))
         return [{"query": plan["query"]}]
 
@@ -297,6 +297,59 @@ def test_search_variant_records_runs_each_query_variant(monkeypatch) -> None:
         ('"Alp X" "Liechtenstein" "land cover"', 5),
         ('"Alp X" "Liechtenstein" "land use"', 5),
     ]
+
+
+def test_search_variant_records_shares_a_page_cache(monkeypatch) -> None:
+    caches = []
+
+    def fake_search_records(plan, *, provider, fetcher, result_count, page_cache):
+        caches.append(page_cache)
+        return []
+
+    monkeypatch.setattr(pipeline_module, "_search_records", fake_search_records)
+
+    pipeline_module._search_variant_records(
+        {
+            "query_variants": [
+                {"id": "v1", "keyword": "one", "query": "one"},
+                {"id": "v2", "keyword": "two", "query": "two"},
+            ]
+        },
+        provider=cast(SearchProvider, object()),
+        fetcher=cast(PageProvider, object()),
+        result_count=5,
+    )
+
+    assert len(caches) == 2
+    assert caches[0] is caches[1]
+
+
+def test_search_records_uses_serial_fetching_when_delay_is_configured(
+    monkeypatch,
+) -> None:
+    fetch_calls = []
+
+    def fake_fetch_pages(fetcher, urls, *, cache, max_workers):
+        fetch_calls.append((urls, cache, max_workers))
+        return {}
+
+    monkeypatch.setattr(pipeline_module, "fetch_pages", fake_fetch_pages)
+
+    class Provider:
+        def search(self, query: str, *, count: int = 5) -> list[SearchResult]:
+            return [SearchResult(1, "Alp X", "https://example.test/alp-x", "")]
+
+    class Fetcher:
+        min_delay_seconds = 0.1
+
+    _search_records(
+        {"query": "Alp X", "selected": {"name_raw": "Alp X"}},
+        provider=Provider(),
+        fetcher=Fetcher(),
+        result_count=5,
+    )
+
+    assert fetch_calls[0][2] == 1
 
 
 def test_run_poc_writes_the_manifest_inside_the_validated_output_path(
