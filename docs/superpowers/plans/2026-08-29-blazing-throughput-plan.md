@@ -26,7 +26,7 @@
 - Modify: `src/osm_polygon_web_search/sentence_dataset.py`
 - Test: `tests/test_sentence_dataset.py`
 
-- [ ] Add a first-seen unique-text mapping inside `_segment_page_texts`, use the existing scalar or optional `split_many` path once per unique text, and restore groups with the original text sequence.
+- [ ] Add a first-seen unique-text mapping inside the optional batched `split_many` path, use it once per unique text, and restore groups with the original text sequence; leave scalar-only models one-call-per-page.
 - [ ] Run the focused sentence-dataset test and the complete `tests/test_sentence_dataset.py`; expected result is all tests passing with duplicate rows preserved.
 - [ ] Refactor only while green so scalar and batched paths share the same exact-text reuse behavior and existing segment cleaning.
 - [ ] Commit with `git add src/osm_polygon_web_search/sentence_dataset.py tests/test_sentence_dataset.py && git commit -m "perf: reuse duplicate sentence segmentation"`.

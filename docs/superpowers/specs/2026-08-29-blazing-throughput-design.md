@@ -68,11 +68,13 @@ growth are excluded from this no-regression pass.
 
 ### Reuse SAT segmentation by exact page text
 
-The sentence expansion boundary first keeps the original page-row order,
-builds a first-seen unique list of non-null text values, and sends only that
-list through the scalar or batched model boundary. It maps each unique group
-back to every original page row before emitting sentence rows. This keeps
-duplicate query/page contexts in the output while avoiding duplicate SAT work.
+The sentence expansion boundary first keeps the original page-row order. When
+the model exposes the optional batched interface, it builds a first-seen unique
+list of non-null text values and sends only that list through the batched SAT
+boundary. It maps each unique group back to every original page row before
+emitting sentence rows. Scalar-only compatibility models retain one call per
+page. This keeps duplicate query/page contexts in the output while avoiding
+duplicate production SAT work.
 
 ### Preserve per-row LFM inference
 
