@@ -1,6 +1,8 @@
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from osm_polygon_web_search.pbf import is_area_relation, way_geometry
 
 
@@ -115,6 +117,50 @@ class FakeFactory:
         if obj._geometry == "raise":
             raise RuntimeError("broken relation")
         return obj._geometry
+
+
+def test_unnamed_way_is_rejected_before_geometry(monkeypatch) -> None:
+    from osm_polygon_web_search import pbf
+
+    monkeypatch.setattr(
+        pbf,
+        "way_geometry",
+        lambda *args, **kwargs: pytest.fail("unnamed way geometry was built"),
+    )
+
+    assert (
+        pbf._way_candidate(
+            FakeWay(
+                "way",
+                object_id=1,
+                tags={},
+                nodes=[(7.0, 47.0), (7.1, 47.0), (7.0, 47.0)],
+            )
+        )
+        is None
+    )
+
+
+def test_unnamed_area_relation_is_rejected_before_geometry(monkeypatch) -> None:
+    from osm_polygon_web_search import pbf
+
+    monkeypatch.setattr(
+        pbf,
+        "_relation_geometry",
+        lambda *args, **kwargs: pytest.fail("unnamed relation geometry was built"),
+    )
+
+    assert (
+        pbf._relation_candidate(
+            FakeArea(
+                "area",
+                object_id=1,
+                tags={"type": "multipolygon"},
+            ),
+            object(),
+        )
+        is None
+    )
 
 
 def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> None:

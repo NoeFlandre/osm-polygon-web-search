@@ -42,28 +42,33 @@ def _candidate(
     osm_id: int,
     tags: Mapping[str, str],
     geometry: Mapping[str, object],
+    *,
+    name_key: str | None = None,
 ) -> PolygonCandidate | None:
     name = tags.get("name", "")
-    name_key = normalize_name(name)
-    if not name_key:
+    normalized_name = normalize_name(name) if name_key is None else name_key
+    if not normalized_name:
         return None
     return PolygonCandidate(
         osm_type=osm_type,
         osm_id=osm_id,
         name_raw=name,
-        name_key=name_key,
+        name_key=normalized_name,
         tags=dict(tags),
         geometry=dict(geometry),
     )
 
 
 def _way_candidate(obj: Any) -> PolygonCandidate | None:
+    name_key = normalize_name(obj.tags.get("name", ""))
+    if not name_key:
+        return None
     geometry = way_geometry(
         ((node.lon, node.lat) for node in obj.nodes),
         area_tag=obj.tags.get("area"),
     )
     return (
-        _candidate("way", obj.id, dict(obj.tags), geometry)
+        _candidate("way", obj.id, obj.tags, geometry, name_key=name_key)
         if geometry is not None
         else None
     )
@@ -85,10 +90,13 @@ def _relation_candidate(obj: Any, factory: Any) -> PolygonCandidate | None:
     tags = dict(obj.tags)
     if not is_area_relation(tags):
         return None
+    name_key = normalize_name(tags.get("name", ""))
+    if not name_key:
+        return None
     geometry = _relation_geometry(factory, obj)
     if geometry is None:
         return None
-    return _candidate("relation", obj.orig_id(), tags, geometry)
+    return _candidate("relation", obj.orig_id(), tags, geometry, name_key=name_key)
 
 
 def _object_candidate(obj: Any, factory: Any) -> PolygonCandidate | None:
