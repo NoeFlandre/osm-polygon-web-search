@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import cast
 
@@ -402,6 +403,35 @@ def test_run_poc_writes_a_plan_without_live_search(monkeypatch, tmp_path) -> Non
     assert output.exists()
     assert output.read_text() == '{\n  "query": null,\n  "selected": null\n}\n'
     assert '"results"' not in output.read_text()
+
+
+def test_run_poc_streams_json_without_building_a_second_string(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    plan = {"query": None, "selected": None}
+    monkeypatch.setattr(
+        "osm_polygon_web_search.pipeline.build_plan",
+        lambda path, keywords: plan,
+    )
+    monkeypatch.setattr(
+        "osm_polygon_web_search.pipeline.ensure_data_path",
+        lambda path: tmp_path,
+    )
+    monkeypatch.setattr(
+        pipeline_module.json,
+        "dumps",
+        lambda *args, **kwargs: pytest.fail("plan must be streamed to disk"),
+    )
+
+    output = run_poc(
+        Path("liechtenstein-latest.osm.pbf"),
+        output_dir=Path("ignored"),
+        search=False,
+    )
+
+    assert json.loads(output.read_text()) == plan
+    assert output.read_text().endswith("\n")
 
 
 def test_run_poc_writes_all_variant_results(monkeypatch, tmp_path) -> None:

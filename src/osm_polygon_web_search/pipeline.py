@@ -192,5 +192,7 @@ def run_poc(
     destination = ensure_data_path(output_dir)
     destination.mkdir(parents=True, exist_ok=True)
     output_path = destination / "run.json"
-    output_path.write_text(json.dumps(plan, indent=2, ensure_ascii=False) + "\n")
+    with output_path.open("w", encoding="utf-8") as handle:
+        json.dump(plan, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
     return output_path
