@@ -28,6 +28,16 @@ def _classify_sentences(
     return labels
 
 
+def _classify_unique_sentences(
+    sentences: Sequence[str],
+    classifier: RelevanceClassifier,
+) -> list[RelevanceLabel]:
+    unique_sentences = list(dict.fromkeys(sentences))
+    unique_labels = _classify_sentences(unique_sentences, classifier)
+    labels_by_sentence = dict(zip(unique_sentences, unique_labels, strict=True))
+    return [labels_by_sentence[sentence] for sentence in sentences]
+
+
 def classify_rows(
     rows: Iterable[Mapping[str, Any]],
     classifier: RelevanceClassifier,
@@ -79,7 +89,7 @@ def transform_parquet(
             sentences.append(sentence)
 
     selected = source.take(pa.array(valid_indices, type=pa.int64()))
-    labels = _classify_sentences(sentences, classifier)
+    labels = _classify_unique_sentences(sentences, classifier)
     classified = selected.append_column(
         "relevance_label",
         pa.array(labels, type=pa.string()),
