@@ -67,12 +67,16 @@ those baseline evidence fields.
 ### Sentence-level output
 
 The approved Viewer transformation loads `segment-any-text/sat-3l-sm` through
-`wtpsplit` once and segments every non-empty Trafilatura page text through its
-bounded batch interface. A scalar compatibility interface remains available
-for injected models. Each sentence becomes one output row. The original full
-page text remains in `text` for provenance; `sentence`, `sentence_index`,
-`sentence_count`, and `sentence_model` expose the model output and its position.
-Empty extracted text produces no sentence row.
+`wtpsplit` once and segments each distinct non-empty Trafilatura page text
+through its bounded batch interface. The first-seen results are restored to
+every original page/query row, so duplicate contexts remain visible without
+repeating deterministic model work. A scalar compatibility interface remains
+available for injected models. Each sentence becomes one output row. The
+original full page text remains in `text` for provenance; `sentence`,
+`sentence_index`, `sentence_count`, and `sentence_model` expose the model output
+and its position. Empty extracted text produces no sentence row. Parquet
+expansion uses Arrow row selection and typed appended columns rather than
+materializing the complete source table as Python dictionaries.
 
 ### Local relevance classification
 
@@ -82,7 +86,10 @@ Generation is deterministic and the parser accepts only `yes` or `no` as the
 final answer, allowing the model's closing `</think>` wrapper. Any other
 output fails hard. The complete table adds `relevance_label` and
 `relevance_model` and remains on the Seagate; the Hugging Face `train.parquet`
-is the filtered `relevance_label == "yes"` subset.
+is the filtered `relevance_label == "yes"` subset. The Parquet path sends each
+distinct sentence string through the bounded local classifier once and fans
+labels back to all original rows. The public mapping API remains scalar-input
+compatible.
 
 ## Network and scale controls
 
