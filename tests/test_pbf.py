@@ -119,6 +119,33 @@ class FakeFactory:
         return obj._geometry
 
 
+def test_candidate_rejects_an_empty_normalized_name() -> None:
+    from osm_polygon_web_search import pbf
+
+    assert pbf._candidate("way", 1, {"name": "  "}, {"type": "Polygon"}) is None
+
+
+def test_candidate_rejects_a_missing_name() -> None:
+    from osm_polygon_web_search import pbf
+
+    assert pbf._candidate("way", 1, {}, {"type": "Polygon"}) is None
+
+
+def test_candidate_uses_a_supplied_normalized_name() -> None:
+    from osm_polygon_web_search import pbf
+
+    candidate = pbf._candidate(
+        "way",
+        1,
+        {"name": "Raw Name"},
+        {"type": "Polygon"},
+        name_key="precomputed-key",
+    )
+
+    assert candidate is not None
+    assert candidate.name_key == "precomputed-key"
+
+
 def test_unnamed_way_is_rejected_before_geometry(monkeypatch) -> None:
     from osm_polygon_web_search import pbf
 
@@ -141,6 +168,30 @@ def test_unnamed_way_is_rejected_before_geometry(monkeypatch) -> None:
     )
 
 
+def test_way_candidate_does_not_normalize_the_name_twice(monkeypatch) -> None:
+    from osm_polygon_web_search import pbf
+
+    calls: list[str] = []
+
+    def normalize(value: str) -> str:
+        calls.append(value)
+        return "precomputed-key"
+
+    monkeypatch.setattr(pbf, "normalize_name", normalize)
+    candidate = pbf._way_candidate(
+        FakeWay(
+            "way",
+            object_id=1,
+            tags={"name": "Raw Name"},
+            nodes=[(7.0, 47.0), (7.1, 47.0), (7.0, 47.1), (7.0, 47.0)],
+        )
+    )
+
+    assert candidate is not None
+    assert candidate.name_key == "precomputed-key"
+    assert calls == ["Raw Name"]
+
+
 def test_unnamed_area_relation_is_rejected_before_geometry(monkeypatch) -> None:
     from osm_polygon_web_search import pbf
 
@@ -161,6 +212,31 @@ def test_unnamed_area_relation_is_rejected_before_geometry(monkeypatch) -> None:
         )
         is None
     )
+
+
+def test_relation_candidate_does_not_normalize_the_name_twice(monkeypatch) -> None:
+    from osm_polygon_web_search import pbf
+
+    calls: list[str] = []
+
+    def normalize(value: str) -> str:
+        calls.append(value)
+        return "precomputed-key"
+
+    monkeypatch.setattr(pbf, "normalize_name", normalize)
+    candidate = pbf._relation_candidate(
+        FakeArea(
+            "area",
+            object_id=1,
+            tags={"type": "multipolygon", "name": "Raw Name"},
+            geometry=json.dumps({"type": "MultiPolygon", "coordinates": [[[[]]]]}),
+        ),
+        FakeFactory(),
+    )
+
+    assert candidate is not None
+    assert candidate.name_key == "precomputed-key"
+    assert calls == ["Raw Name"]
 
 
 def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> None:
@@ -188,8 +264,18 @@ def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> 
             geometry=json.dumps({"type": "MultiPolygon", "coordinates": [[[[]]]]}),
         ),
         FakeArea("area", object_id=6, tags={"type": "route"}),
-        FakeArea("area", object_id=7, tags={"type": "multipolygon"}, geometry="raise"),
-        FakeArea("area", object_id=8, tags={"type": "multipolygon"}, geometry="[]"),
+        FakeArea(
+            "area",
+            object_id=7,
+            tags={"type": "multipolygon", "name": "Broken relation"},
+            geometry="raise",
+        ),
+        FakeArea(
+            "area",
+            object_id=8,
+            tags={"type": "multipolygon", "name": "Empty relation"},
+            geometry="[]",
+        ),
         FakeArea(
             "area",
             object_id=9,
