@@ -22,9 +22,7 @@ def _classify_sentences(
     for start in range(0, len(sentences), CLASSIFICATION_BATCH_SIZE):
         batch = sentences[start : start + CLASSIFICATION_BATCH_SIZE]
         batch_labels = classifier.classify_many(batch)
-        labels.extend(
-            label for _, label in zip(batch, batch_labels, strict=True)
-        )
+        labels.extend(label for _, label in zip(batch, batch_labels, strict=True))
     return labels
 
 
@@ -65,7 +63,6 @@ def transform_parquet(
 ) -> tuple[int, int]:
     """Write full local labels and the yes-only Viewer table."""
     import pyarrow as pa
-    import pyarrow.compute as pc
     import pyarrow.parquet as pq
 
     source = pq.read_table(input_path)
@@ -88,7 +85,7 @@ def transform_parquet(
         "relevance_model",
         pa.array([RELEVANCE_MODEL_ID] * len(labels), type=pa.string()),
     )
-    relevant = classified.filter(pc.equal(classified["relevance_label"], "yes"))
+    relevant = classified.filter(pa.array(label == "yes" for label in labels))
     for output_path, rows in (
         (classified_output_path, classified),
         (relevant_output_path, relevant),

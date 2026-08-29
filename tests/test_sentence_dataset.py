@@ -104,6 +104,7 @@ def test_sentence_rows_does_not_call_a_batch_model_without_page_text() -> None:
     assert sentence_rows([{"page_url": "https://example.test/missing"}], model) == []
     assert model.inputs == []
 
+
 def test_transform_parquet_writes_the_expanded_rows(tmp_path: Path) -> None:
     input_path = tmp_path / "input.parquet"
     output_path = tmp_path / "nested" / "deeper" / "output.parquet"

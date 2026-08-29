@@ -342,6 +342,9 @@ def test_search_records_uses_serial_fetching_when_delay_is_configured(
     class Fetcher:
         min_delay_seconds = 0.1
 
+        def fetch(self, url: str) -> FetchedPage:
+            raise AssertionError(f"fetch should be stubbed for {url}")
+
     _search_records(
         {"query": "Alp X", "selected": {"name_raw": "Alp X"}},
         provider=Provider(),

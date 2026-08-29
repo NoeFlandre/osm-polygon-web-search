@@ -12,9 +12,7 @@ class SentenceModel(Protocol):
 
 
 class BatchedSentenceModel(SentenceModel, Protocol):
-    def split_many(
-        self, texts: Sequence[str], /
-    ) -> Iterable[Iterable[str]]: ...
+    def split_many(self, texts: Sequence[str], /) -> Iterable[Iterable[str]]: ...
 
 
 class SatSentenceModel:
@@ -26,9 +24,7 @@ class SatSentenceModel:
     def split(self, text: str, /) -> Iterable[str]:
         return self._model.split(text)
 
-    def split_many(
-        self, texts: Sequence[str], /
-    ) -> Iterable[Iterable[str]]:
+    def split_many(self, texts: Sequence[str], /) -> Iterable[Iterable[str]]:
         return self._model.split(
             list(texts),
             batch_size=SAT_BATCH_SIZE,
@@ -40,9 +36,7 @@ def load_sat_model() -> SatSentenceModel:
     """Load the approved SAT-3L-SM sentence segmentation model."""
     from wtpsplit import SaT
 
-    return SatSentenceModel(
-        SaT(SAT_MODEL_NAME, ort_providers=["CPUExecutionProvider"])
-    )
+    return SatSentenceModel(SaT(SAT_MODEL_NAME, ort_providers=["CPUExecutionProvider"]))
 
 
 def _clean_segments(segments: Iterable[str]) -> list[str]:
