@@ -31,6 +31,7 @@ def test_split_sentences_trims_and_discards_empty_model_segments() -> None:
 
 def test_load_sat_model_uses_the_approved_model_name(monkeypatch) -> None:
     created: list[tuple[str, dict[str, list[str]]]] = []
+    split_calls: list[tuple[object, dict[str, int]]] = []
 
     class FakeSaT:
         def __init__(
@@ -40,10 +41,24 @@ def test_load_sat_model_uses_the_approved_model_name(monkeypatch) -> None:
         ) -> None:
             created.append((model_name, kwargs))
 
+        def split(self, text_or_texts: object, **kwargs: int) -> list[object]:
+            split_calls.append((text_or_texts, kwargs))
+            if isinstance(text_or_texts, list):
+                return [["first"], ["second"]]
+            return ["scalar"]
+
     monkeypatch.setitem(sys.modules, "wtpsplit", SimpleNamespace(SaT=FakeSaT))
 
     model = load_sat_model()
 
-    assert isinstance(model, FakeSaT)
     assert created == [(SAT_MODEL_NAME, {"ort_providers": ["CPUExecutionProvider"]})]
+    assert list(model.split("page")) == ["scalar"]
+    assert [list(group) for group in model.split_many(["first", "second"])] == [
+        ["first"],
+        ["second"],
+    ]
+    assert split_calls == [
+        ("page", {}),
+        (["first", "second"], {"batch_size": 32, "outer_batch_size": 1000}),
+    ]
     assert SAT_MODEL_ID == "segment-any-text/sat-3l-sm"
