@@ -1,6 +1,7 @@
 import json
 from types import SimpleNamespace
 
+import osmium.filter
 import pytest
 
 from osm_polygon_web_search.pbf import is_area_relation, way_geometry
@@ -101,11 +102,16 @@ class FakeArea(FakeObject):
 class FakeProcessor:
     def __init__(self, objects: list[FakeObject]) -> None:
         self.objects = objects
+        self.filters = []
 
     def with_locations(self) -> "FakeProcessor":
         return self
 
     def with_areas(self) -> "FakeProcessor":
+        return self
+
+    def with_filter(self, filt) -> "FakeProcessor":
+        self.filters.append(filt)
         return self
 
     def __iter__(self):
@@ -244,6 +250,8 @@ def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> 
 
     ring = [(7.0, 47.0), (7.1, 47.0), (7.1, 47.1), (7.0, 47.0)]
     path_seen = []
+    entities_seen = []
+    processors = []
     objects = [
         FakeWay("way", object_id=1, tags={"name": "Closed"}, nodes=ring),
         FakeWay("way", object_id=2, tags={"name": "Open"}, nodes=ring[:-1]),
@@ -290,11 +298,24 @@ def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> 
         ),
     ]
 
-    def file_processor(path):
+    def file_processor(path, *, entities=None):
         path_seen.append(path)
-        return FakeProcessor(objects)
+        entities_seen.append(entities)
+        processor = FakeProcessor(objects)
+        processors.append(processor)
+        return processor
 
     monkeypatch.setattr(pbf.osmium, "FileProcessor", file_processor)
+    monkeypatch.setattr(
+        osmium.filter,
+        "EntityFilter",
+        lambda entities: ("entity-filter", entities),
+    )
+    monkeypatch.setattr(
+        osmium.filter,
+        "KeyFilter",
+        lambda *keys: ("key-filter", keys),
+    )
     monkeypatch.setattr(pbf.osmium.osm, "Way", FakeWay)
     monkeypatch.setattr(pbf.osmium.osm, "Area", FakeArea)
     monkeypatch.setattr(pbf.osmium.geom, "GeoJSONFactory", FakeFactory)
@@ -302,6 +323,17 @@ def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> 
     candidates = pbf.scan_pbf(__import__("pathlib").Path("fake.osm.pbf"))
 
     assert path_seen == ["fake.osm.pbf"]
+    assert entities_seen == [
+        pbf.osmium.osm.osm_entity_bits.NODE | pbf.osmium.osm.osm_entity_bits.WAY
+    ]
+    assert [item[0] for item in processors[0].filters] == [
+        "entity-filter",
+        "key-filter",
+    ]
+    assert processors[0].filters[0][1] == (
+        pbf.osmium.osm.osm_entity_bits.WAY | pbf.osmium.osm.osm_entity_bits.AREA
+    )
+    assert processors[0].filters[1][1] == ("name",)
     assert [(item.osm_type, item.osm_id) for item in candidates] == [
         ("way", 1),
         ("relation", 9),

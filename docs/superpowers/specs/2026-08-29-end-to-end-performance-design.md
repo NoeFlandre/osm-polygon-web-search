@@ -24,7 +24,29 @@ page fetching, JSON streaming, and one-forward-pass LFM classification are
 already validated. LFM sentence reuse is explicitly unsafe because stored
 duplicate sentence values have conflicting labels across query variants.
 
-## Selected change
+## Selected changes
+
+### Native entity filtering
+
+The fresh profile after the first optimization showed that pyosmium still
+constructed Python wrappers for every node and raw relation even though the
+Python boundary only handles ways and assembled areas. A read-only probe using
+`osmium.filter.EntityFilter(WAY | AREA)` reduced the scan from 1.27 to 0.296
+seconds for Liechtenstein and from 0.286 to 0.063 seconds for Monaco, with
+exact candidate equality. A second native `KeyFilter("name")` probe reduced
+the entity-filtered median by another 1.76x for Liechtenstein and 1.47x for
+Monaco, again with exact candidate equality. The production processor will
+retain its location cache and area assembly, restrict the second-pass reader
+to `NODE | WAY` (the area manager still reads relations in its internal first
+pass), and filter the iterator before the Python loop so only named ways and
+assembled areas cross that boundary.
+
+This is behavior-preserving because node and way objects remain available to
+the location-cache handler and area assembly, relation processing remains in
+the area manager's first pass, and only objects that `_object_candidate`
+already ignored for their entity type or missing name are excluded from the
+consumer loop. Objects with a present but blank name still cross the native
+key filter and retain the Python normalization behavior.
 
 In `pbf.py`, compute `normalize_name(tags.get("name", ""))` before any
 expensive geometry operation for both closed ways and area relations. Return
@@ -52,7 +74,8 @@ fields remain unchanged.
 ## Verification
 
 RED tests must prove unnamed ways and unnamed area relations skip geometry.
-GREEN must preserve the existing PBF fixture output. A real before/after
+GREEN must preserve the existing PBF fixture output and prove that the native
+entity and name filters are configured for ways and areas. A real before/after
 benchmark on the two Seagate PBF snapshots must report candidate counts,
 output equivalence, wall time, and peak resident memory. The full gate must
 retain 100% line/branch coverage, zero surviving or unresolved mutants, CRAP

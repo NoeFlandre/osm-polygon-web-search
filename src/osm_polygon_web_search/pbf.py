@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import osmium
+import osmium.filter
 import osmium.geom
 import osmium.osm
 
@@ -111,8 +112,22 @@ def scan_pbf(path: Path) -> list[PolygonCandidate]:
     """Return named closed ways and assembled named area relations from a PBF."""
     factory = osmium.geom.GeoJSONFactory()
     candidates: list[PolygonCandidate] = []
+    processor = (
+        osmium.FileProcessor(
+            str(path),
+            entities=osmium.osm.osm_entity_bits.NODE | osmium.osm.osm_entity_bits.WAY,
+        )
+        .with_locations()
+        .with_areas()
+    )
+    processor.with_filter(
+        osmium.filter.EntityFilter(
+            osmium.osm.osm_entity_bits.WAY | osmium.osm.osm_entity_bits.AREA
+        )
+    )
+    processor.with_filter(osmium.filter.KeyFilter("name"))
 
-    for obj in osmium.FileProcessor(str(path)).with_locations().with_areas():
+    for obj in processor:
         item = _object_candidate(obj, factory)
         if item is not None:
             candidates.append(item)
