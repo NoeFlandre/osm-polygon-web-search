@@ -182,63 +182,6 @@ def test_transform_parquet_writes_full_and_relevant_tables(tmp_path: Path) -> No
     ]
 
 
-def test_transform_parquet_classifies_duplicate_sentences_once(tmp_path: Path) -> None:
-    input_path = tmp_path / "input.parquet"
-    classified_path = tmp_path / "classified.parquet"
-    relevant_path = tmp_path / "relevant.parquet"
-    pq.write_table(
-        pa.Table.from_pylist(
-            [
-                {"id": 1, "sentence": "A forest covers the slope."},
-                {"id": 2, "sentence": "A forest covers the slope."},
-                {"id": 3, "sentence": "A road crosses the valley."},
-            ]
-        ),
-        input_path,
-    )
-    classifier = FakeClassifier(
-        {
-            "A forest covers the slope.": "yes",
-            "A road crosses the valley.": "no",
-        }
-    )
-
-    counts = transform_parquet(
-        input_path,
-        classified_path,
-        relevant_path,
-        classifier,
-    )
-
-    assert counts == (3, 2)
-    assert classifier.batch_calls == [
-        [
-            "A forest covers the slope.",
-            "A road crosses the valley.",
-        ]
-    ]
-    assert pq.read_table(classified_path).to_pylist() == [
-        {
-            "id": 1,
-            "sentence": "A forest covers the slope.",
-            "relevance_label": "yes",
-            "relevance_model": RELEVANCE_MODEL_ID,
-        },
-        {
-            "id": 2,
-            "sentence": "A forest covers the slope.",
-            "relevance_label": "yes",
-            "relevance_model": RELEVANCE_MODEL_ID,
-        },
-        {
-            "id": 3,
-            "sentence": "A road crosses the valley.",
-            "relevance_label": "no",
-            "relevance_model": RELEVANCE_MODEL_ID,
-        },
-    ]
-
-
 def test_transform_parquet_keeps_source_rows_in_arrow(
     monkeypatch, tmp_path: Path
 ) -> None:

@@ -10,8 +10,10 @@ observable results.
 
 The existing Seagate-backed POC contains 18 page rows but only 8 unique page
 texts. Its 708 sentence rows contain 352 unique sentence values. The pipeline
-currently sends every repeated value through SAT and LFM, even though both
-approved local models receive the same input and produce one output per value.
+currently sends every repeated page text through SAT. A regression audit found
+that two repeated sentence values have conflicting labels in the stored LFM
+output across query variants, so LFM calls cannot be deduplicated without
+changing results on this runtime.
 
 The previous pass already bounds web-page concurrency, reuses successful URLs,
 batches SAT, uses one LFM forward pass per batch, and keeps relevance
@@ -27,12 +29,12 @@ growth are excluded from this no-regression pass.
 1. **Micro-optimizations only.** Reduce small Python allocations and stream
    JSON output. This is very low risk but leaves repeated model inference and
    full Python row materialization untouched.
-2. **Deterministic content reuse plus Arrow-native expansion.** Segment each
-   exact page text once, classify each exact sentence once, fan results back to
-   their original rows, and build sentence Parquet output with Arrow index
-   selection. Stream JSON serialization as a small memory improvement. This is
-   the selected design because it removes the measured duplicate work while
-   preserving the public table contract.
+2. **Safe SAT reuse plus Arrow-native expansion.** Segment each exact page text
+   once, restore the results to their original rows, and build sentence
+   Parquet output with Arrow index selection. Stream JSON serialization as a
+   small memory improvement, while retaining per-row LFM inference because
+   the observed labels are not stable for duplicate sentence values. This is
+   the selected design because it removes only proven-safe duplicate work.
 3. **Model/runtime replacement.** Change model precision, quantization,
    device policy, or compilation settings. This could be faster on one machine
    but risks label drift, unsupported hardware, OOM failures, new dependencies,
@@ -48,10 +50,10 @@ growth are excluded from this no-regression pass.
 - LFM remains `LiquidAI/LFM2.5-2.6B` with the exact existing prompt, left
   padding, final-logit comparison, binary labels, and bounded classifier
   batches.
-- Content reuse uses exact strings only. Repeated page text and repeated
-  sentence text receive the same result they would receive in the existing
-  deterministic local model path; results are expanded back to all original
-  contexts.
+- SAT content reuse uses exact page-text strings only. Repeated page text
+  receives the same segmentation result and is expanded back to all original
+  contexts. LFM classification remains per-row because the existing stored
+  output demonstrates conflicting labels for some repeated sentence strings.
 - Sentence Parquet output keeps all source columns and appends the same four
   sentence columns. Relevance Parquet output keeps its existing columns and
   yes-only filter.
@@ -72,14 +74,14 @@ list through the scalar or batched model boundary. It maps each unique group
 back to every original page row before emitting sentence rows. This keeps
 duplicate query/page contexts in the output while avoiding duplicate SAT work.
 
-### Reuse LFM labels by exact sentence
+### Preserve per-row LFM inference
 
-The Parquet transformation keeps the public mapping API unchanged. Its Arrow
-path builds the valid sentence sequence, classifies a first-seen unique
-sentence list in the existing bounded batches, and expands the labels back to
-the valid source-row positions. A sentence remains attached to its original
-polygon, query, URL, and other context; only the deterministic model call is
-deduplicated.
+The Parquet transformation keeps the existing valid sentence sequence and
+bounded batches. It does not deduplicate sentence strings: the current stored
+classification table contains duplicate sentence values with different labels
+across query variants. Retaining one model call per source row is therefore a
+required no-regression invariant until classifier determinism is separately
+established.
 
 ### Arrow-native sentence table construction
 
@@ -102,8 +104,8 @@ Each implementation change follows RED -> GREEN -> REFACTOR:
 
 - Tests prove duplicate SAT inputs are called once and all duplicate contexts
   retain identical output rows and indices.
-- Tests prove duplicate LFM sentence inputs are classified once and labels are
-  expanded to every original row.
+- A regression audit proves that duplicate LFM sentence values with conflicting
+  stored labels are not deduplicated.
 - Tests prove Arrow sentence output preserves source columns, row order, row
   multiplicity, typed empty output, and exact sentence values.
 - Tests prove the JSON artifact parses to the same plan and retains its final

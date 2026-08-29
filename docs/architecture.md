@@ -86,10 +86,10 @@ Generation is deterministic and the parser accepts only `yes` or `no` as the
 final answer, allowing the model's closing `</think>` wrapper. Any other
 output fails hard. The complete table adds `relevance_label` and
 `relevance_model` and remains on the Seagate; the Hugging Face `train.parquet`
-is the filtered `relevance_label == "yes"` subset. The Parquet path sends each
-distinct sentence string through the bounded local classifier once and fans
-labels back to all original rows. The public mapping API remains scalar-input
-compatible.
+is the filtered `relevance_label == "yes"` subset. Classification remains
+per-row because the stored POC output contains conflicting labels for some
+duplicate sentence strings across query variants. The public mapping API
+remains scalar-input compatible.
 
 ## Network and scale controls
 

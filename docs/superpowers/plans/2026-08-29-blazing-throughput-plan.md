@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Remove measured duplicate SAT/LFM work and full Python Parquet materialization while preserving every output contract.
+**Goal:** Remove proven-safe duplicate SAT work and full Python Parquet materialization while preserving every output contract.
 
-**Architecture:** Keep the existing scalar and batched model boundaries. Add first-seen exact-content reuse at the sentence and relevance transformation boundaries, restore output multiplicity with stable indices, and use Arrow `Table.take` for sentence expansion. Stream the existing JSON representation directly to disk.
+**Architecture:** Keep the existing scalar and batched model boundaries. Add first-seen exact-content reuse only at the SAT sentence boundary, restore output multiplicity with stable indices, and use Arrow `Table.take` for sentence expansion. Keep per-row LFM inference because the stored output contains conflicting labels for duplicate sentence strings. Stream the existing JSON representation directly to disk.
 
 **Tech Stack:** Python 3.12, uv, pytest, coverage.py, mutmut, PyArrow, wtpsplit, Transformers, standard-library JSON.
 
@@ -31,26 +31,23 @@
 - [ ] Refactor only while green so scalar and batched paths share the same exact-text reuse behavior and existing segment cleaning.
 - [ ] Commit with `git add src/osm_polygon_web_search/sentence_dataset.py tests/test_sentence_dataset.py && git commit -m "perf: reuse duplicate sentence segmentation"`.
 
-## Task 3: Establish the RED tests for LFM label reuse
+## Task 3: Verify that LFM label reuse is unsafe
 
 **Files:**
-- Modify: `tests/test_relevance_dataset.py`
+- Read: `/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc-20260828-lfm2.5-2.6b-relevance/classified/train.parquet`
+- No production or test changes.
+
+- [ ] Read the stored `sentence` and `relevance_label` columns and group labels by exact sentence value.
+- [ ] Confirm the two observed duplicate values with conflicting labels and record that per-row inference must remain unchanged.
+
+## Task 4: Retain the existing LFM transformation
+
+**Files:**
 - Read: `src/osm_polygon_web_search/relevance_dataset.py`
-
-- [ ] Add `test_transform_parquet_classifies_duplicate_sentences_once` with two equal sentence values and one distinct value, a recording classifier, and assertions that one first-seen batch is classified while the output contains one label per original row.
-- [ ] Run `uv run --no-cache pytest -q tests/test_relevance_dataset.py::test_transform_parquet_classifies_duplicate_sentences_once` and confirm the current implementation fails because all duplicate sentences are sent to the classifier.
-
-## Task 4: Implement LFM reuse without changing the public mapping API
-
-**Files:**
-- Modify: `src/osm_polygon_web_search/relevance_dataset.py`
 - Test: `tests/test_relevance_dataset.py`
 
-- [ ] Add a private `_classify_unique_sentences` helper that classifies `list(dict.fromkeys(sentences))` through the existing `_classify_sentences` batch validator and maps labels back by exact sentence value.
-- [ ] Use that helper only in `transform_parquet`; leave `classify_rows` behavior and its existing classifier-call contract unchanged.
-- [ ] Run the focused test and the complete relevance-dataset tests; expected result is all tests passing with the same full and yes-only Parquet rows.
-- [ ] Refactor while green to avoid repeated mapping logic and keep strict one-label-per-input checks.
-- [ ] Commit with `git add src/osm_polygon_web_search/relevance_dataset.py tests/test_relevance_dataset.py && git commit -m "perf: reuse duplicate relevance sentences"`.
+- [ ] Keep `_classify_sentences` and `transform_parquet` unchanged so each valid source sentence retains its existing batch position and model call.
+- [ ] Run `uv run --no-cache pytest -q tests/test_relevance_dataset.py` and confirm all existing output and batch-contract tests pass.
 
 ## Task 5: Establish and implement Arrow-native SAT Parquet expansion
 
@@ -83,7 +80,7 @@
 - Modify documentation only if measured behavior requires a correction to the design or architecture page.
 
 - [ ] Run a read-only comparison of the current committed output fixtures and the optimized sentence/relevance transformations; assert row values, row order, schemas, and counts are equal.
-- [ ] Report the measured first-seen counts for the 18-page/708-sentence Seagate POC and calculate the avoided SAT/LFM input rows without uploading or rewriting HF data.
+- [ ] Report the measured first-seen counts for the 18-page/708-sentence Seagate POC, the avoided SAT inputs, and the two conflicting LFM duplicate labels without uploading or rewriting HF data.
 - [ ] Run `uv run --no-cache ruff format --check .`, `uv run --no-cache ruff check .`, and `uv run --no-cache ty check`.
 - [ ] Run `uv run --no-cache pytest -q --cov=osm_polygon_web_search --cov-branch --cov-report=term-missing` and require 100% line and branch coverage.
 - [ ] Run the strict MkDocs build, pre-commit, CRAP check, and full mutmut gate; require CRAP below 6 and zero surviving or unresolved mutants.
