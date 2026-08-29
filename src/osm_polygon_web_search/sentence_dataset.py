@@ -64,20 +64,69 @@ def sentence_rows(
     return expanded
 
 
+def _sentence_table(source: Any, model: SentenceModel) -> Any:
+    import pyarrow as pa
+
+    text_values = (
+        source["text"].to_pylist() if "text" in source.column_names else []
+    )
+    source_indices: list[int] = []
+    texts: list[str] = []
+    for index, text in enumerate(text_values):
+        if isinstance(text, str):
+            source_indices.append(index)
+            texts.append(text)
+
+    sentence_groups = _segment_page_texts(texts, model)
+    repeated_indices: list[int] = []
+    sentence_values: list[str] = []
+    sentence_indices: list[int] = []
+    sentence_counts: list[int] = []
+    for source_index, sentences in zip(source_indices, sentence_groups, strict=True):
+        count = len(sentences)
+        repeated_indices.extend([source_index] * count)
+        sentence_values.extend(sentences)
+        sentence_indices.extend(range(count))
+        sentence_counts.extend([count] * count)
+
+    selected = (
+        source.take(pa.array(repeated_indices, type=pa.int64()))
+        if repeated_indices
+        else source.slice(0, 0)
+    )
+    return (
+        selected.append_column(
+            "sentence",
+            pa.array(sentence_values, type=pa.string()),
+        )
+        .append_column(
+            "sentence_index",
+            pa.array(sentence_indices, type=pa.int64()),
+        )
+        .append_column(
+            "sentence_count",
+            pa.array(sentence_counts, type=pa.int64()),
+        )
+        .append_column(
+            "sentence_model",
+            pa.array([SAT_MODEL_ID] * len(sentence_values), type=pa.string()),
+        )
+    )
+
+
 def transform_parquet(
     input_path: Path,
     output_path: Path,
     model: SentenceModel,
 ) -> int:
     """Write a sentence-level parquet table and return its row count."""
-    import pyarrow as pa
     import pyarrow.parquet as pq
 
     source = pq.read_table(input_path)
-    rows = sentence_rows(source.to_pylist(), model)
+    rows = _sentence_table(source, model)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(pa.Table.from_pylist(rows), output_path)
-    return len(rows)
+    pq.write_table(rows, output_path)
+    return rows.num_rows
 
 
 def main(argv: Sequence[str] | None = None) -> None:
