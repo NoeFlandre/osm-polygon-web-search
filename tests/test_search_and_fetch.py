@@ -264,6 +264,7 @@ def test_fetch_pages_keeps_provider_order_with_bounded_concurrency() -> None:
     active = 0
     peak = 0
     lock = threading.Lock()
+    barrier = threading.Barrier(4, timeout=1.0)
 
     class Fetcher:
         min_delay_seconds = 0.0
@@ -273,6 +274,7 @@ def test_fetch_pages_keeps_provider_order_with_bounded_concurrency() -> None:
             with lock:
                 active += 1
                 peak = max(peak, active)
+            barrier.wait()
             time.sleep(0.02 if url.endswith("one") else 0.01)
             with lock:
                 active -= 1
@@ -308,8 +310,12 @@ def test_fetch_pages_does_not_cache_failed_urls() -> None:
 
 
 def test_fetch_pages_requires_a_positive_worker_count() -> None:
+    class Fetcher:
+        def fetch(self, url: str) -> FetchedPage:
+            raise AssertionError(f"fetch should not run for {url}")
+
     with pytest.raises(ValueError, match="max_workers"):
-        fetch_pages(object(), [], max_workers=0)
+        fetch_pages(Fetcher(), [], max_workers=0)
 
 
 def test_retry_delay_falls_back_to_exponential_backoff() -> None:
