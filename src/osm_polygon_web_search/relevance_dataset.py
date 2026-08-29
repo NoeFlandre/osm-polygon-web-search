@@ -3,11 +3,29 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .llm_relevance import RELEVANCE_MODEL_ID, RelevanceClassifier
+from .llm_relevance import (
+    RELEVANCE_MODEL_ID,
+    RelevanceClassifier,
+    RelevanceLabel,
+)
 from .pipeline import ensure_data_path
 from .relevance_model import load_lfm_classifier
 
 CLASSIFICATION_BATCH_SIZE = 16
+
+
+def _classify_sentences(
+    sentences: Sequence[str],
+    classifier: RelevanceClassifier,
+) -> list[RelevanceLabel]:
+    labels: list[RelevanceLabel] = []
+    for start in range(0, len(sentences), CLASSIFICATION_BATCH_SIZE):
+        batch = sentences[start : start + CLASSIFICATION_BATCH_SIZE]
+        batch_labels = classifier.classify_many(batch)
+        labels.extend(
+            label for _, label in zip(batch, batch_labels, strict=True)
+        )
+    return labels
 
 
 def classify_rows(
@@ -22,19 +40,16 @@ def classify_rows(
             continue
         sentence_rows.append(dict(row))
 
-    classified: list[dict[str, Any]] = []
-    for start in range(0, len(sentence_rows), CLASSIFICATION_BATCH_SIZE):
-        batch = sentence_rows[start : start + CLASSIFICATION_BATCH_SIZE]
-        labels = classifier.classify_many([row["sentence"] for row in batch])
-        classified.extend(
-            {
-                **row,
-                "relevance_label": label,
-                "relevance_model": RELEVANCE_MODEL_ID,
-            }
-            for row, label in zip(batch, labels, strict=True)
-        )
-    return classified
+    sentences = [row["sentence"] for row in sentence_rows]
+    labels = _classify_sentences(sentences, classifier)
+    return [
+        {
+            **row,
+            "relevance_label": label,
+            "relevance_model": RELEVANCE_MODEL_ID,
+        }
+        for row, label in zip(sentence_rows, labels, strict=True)
+    ]
 
 
 def relevant_rows(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
@@ -50,18 +65,37 @@ def transform_parquet(
 ) -> tuple[int, int]:
     """Write full local labels and the yes-only Viewer table."""
     import pyarrow as pa
+    import pyarrow.compute as pc
     import pyarrow.parquet as pq
 
     source = pq.read_table(input_path)
-    classified = classify_rows(source.to_pylist(), classifier)
-    relevant = relevant_rows(classified)
+    sentence_values = (
+        source["sentence"].to_pylist() if "sentence" in source.column_names else []
+    )
+    valid_indices: list[int] = []
+    sentences: list[str] = []
+    for index, sentence in enumerate(sentence_values):
+        if isinstance(sentence, str) and sentence.strip():
+            valid_indices.append(index)
+            sentences.append(sentence)
+
+    selected = source.take(pa.array(valid_indices, type=pa.int64()))
+    labels = _classify_sentences(sentences, classifier)
+    classified = selected.append_column(
+        "relevance_label",
+        pa.array(labels, type=pa.string()),
+    ).append_column(
+        "relevance_model",
+        pa.array([RELEVANCE_MODEL_ID] * len(labels), type=pa.string()),
+    )
+    relevant = classified.filter(pc.equal(classified["relevance_label"], "yes"))
     for output_path, rows in (
         (classified_output_path, classified),
         (relevant_output_path, relevant),
     ):
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        pq.write_table(pa.Table.from_pylist(rows), output_path)
-    return len(classified), len(relevant)
+        pq.write_table(rows, output_path)
+    return classified.num_rows, relevant.num_rows
 
 
 def main(argv: Sequence[str] | None = None) -> None:
