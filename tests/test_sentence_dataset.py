@@ -106,8 +106,7 @@ def test_sentence_rows_segments_duplicate_text_once() -> None:
 
     assert model.inputs == [["One.", "Two!"]]
     assert [
-        (row["page_url"], row["sentence"], row["sentence_index"])
-        for row in rows
+        (row["page_url"], row["sentence"], row["sentence_index"]) for row in rows
     ] == [
         ("https://example.test/one", "One.", 0),
         ("https://example.test/duplicate", "One.", 0),

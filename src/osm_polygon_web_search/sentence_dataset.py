@@ -67,9 +67,7 @@ def sentence_rows(
 def _sentence_table(source: Any, model: SentenceModel) -> Any:
     import pyarrow as pa
 
-    text_values = (
-        source["text"].to_pylist() if "text" in source.column_names else []
-    )
+    text_values = source["text"].to_pylist() if "text" in source.column_names else []
     source_indices: list[int] = []
     texts: list[str] = []
     for index, text in enumerate(text_values):
