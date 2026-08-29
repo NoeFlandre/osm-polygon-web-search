@@ -85,6 +85,27 @@ def test_sentence_rows_uses_batch_segmentation_when_available() -> None:
     assert [row["sentence_count"] for row in rows] == [1, 1]
 
 
+def test_sentence_rows_segments_duplicate_text_once() -> None:
+    pages = [
+        {"page_url": "https://example.test/one", "text": "One."},
+        {"page_url": "https://example.test/duplicate", "text": "One."},
+        {"page_url": "https://example.test/two", "text": "Two!"},
+    ]
+    model = FakeBatchedSegmenter([[" One. "], [" Two! "]])
+
+    rows = sentence_rows(pages, model)
+
+    assert model.inputs == [["One.", "Two!"]]
+    assert [
+        (row["page_url"], row["sentence"], row["sentence_index"])
+        for row in rows
+    ] == [
+        ("https://example.test/one", "One.", 0),
+        ("https://example.test/duplicate", "One.", 0),
+        ("https://example.test/two", "Two!", 0),
+    ]
+
+
 def test_sentence_rows_rejects_a_batch_result_count_mismatch() -> None:
     model = FakeBatchedSegmenter([["Only one result"]])
 

@@ -20,14 +20,18 @@ def _segment_page_texts(
     if not texts:
         return []
 
+    unique_texts = list(dict.fromkeys(texts))
     split_many = getattr(model, "split_many", None)
-    if not callable(split_many):
-        return [split_sentences(text, model) for text in texts]
+    if callable(split_many):
+        grouped = list(split_many(unique_texts))
+        if len(grouped) != len(unique_texts):
+            raise ValueError("batched sentence model must return one result per text")
+        unique_groups = [_clean_segments(segments) for segments in grouped]
+    else:
+        unique_groups = [split_sentences(text, model) for text in unique_texts]
 
-    grouped = list(split_many(texts))
-    if len(grouped) != len(texts):
-        raise ValueError("batched sentence model must return one result per text")
-    return [_clean_segments(segments) for segments in grouped]
+    groups_by_text = dict(zip(unique_texts, unique_groups, strict=True))
+    return [groups_by_text[text] for text in texts]
 
 
 def sentence_rows(
