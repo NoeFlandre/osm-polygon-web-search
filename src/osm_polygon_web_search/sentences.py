@@ -11,10 +11,6 @@ class SentenceModel(Protocol):
     def split(self, text: str, /) -> Iterable[str]: ...
 
 
-class BatchedSentenceModel(SentenceModel, Protocol):
-    def split_many(self, texts: Sequence[str], /) -> Iterable[Iterable[str]]: ...
-
-
 class SatSentenceModel:
     """Small compatibility adapter around the loaded wtpsplit model."""
 

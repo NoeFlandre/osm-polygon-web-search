@@ -30,6 +30,11 @@ class ShortClassifier:
         return ["yes"]
 
 
+class LongClassifier:
+    def classify_many(self, sentences: Sequence[str]) -> list[RelevanceLabel]:
+        return ["yes"] * (len(sentences) + 1)
+
+
 def test_classify_rows_preserves_context_and_skips_rows_without_sentences() -> None:
     classifier = FakeClassifier(
         {
@@ -88,13 +93,30 @@ def test_classify_rows_splits_large_inputs_into_bounded_batches() -> None:
 
 
 def test_classify_rows_rejects_a_batch_with_too_few_labels() -> None:
-    with pytest.raises(ValueError, match="shorter"):
+    with pytest.raises(
+        ValueError,
+        match="^classifier must return one label per sentence$",
+    ):
         classify_rows(
             [
                 {"id": 1, "sentence": "A forest covers the slope."},
                 {"id": 2, "sentence": "A road crosses the valley."},
             ],
             ShortClassifier(),
+        )
+
+
+def test_classify_rows_rejects_a_batch_with_too_many_labels() -> None:
+    with pytest.raises(
+        ValueError,
+        match="^classifier must return one label per sentence$",
+    ):
+        classify_rows(
+            [
+                {"id": 1, "sentence": "A forest covers the slope."},
+                {"id": 2, "sentence": "A road crosses the valley."},
+            ],
+            LongClassifier(),
         )
 
 
@@ -210,3 +232,62 @@ def test_transform_parquet_keeps_source_rows_in_arrow(
             "relevance_model": RELEVANCE_MODEL_ID,
         },
     ]
+
+
+def test_transform_parquet_preserves_string_schema_for_empty_selection(
+    tmp_path: Path,
+) -> None:
+    input_path = tmp_path / "input.parquet"
+    classified_path = tmp_path / "classified.parquet"
+    relevant_path = tmp_path / "relevant.parquet"
+    pq.write_table(
+        pa.Table.from_pylist([{"id": 1, "sentence": None}]),
+        input_path,
+    )
+
+    counts = transform_parquet(
+        input_path,
+        classified_path,
+        relevant_path,
+        FakeClassifier({}),
+    )
+    classified = pq.read_table(classified_path)
+    relevant = pq.read_table(relevant_path)
+
+    assert counts == (0, 0)
+    assert classified.num_rows == 0
+    assert classified.column_names == [
+        "id",
+        "sentence",
+        "relevance_label",
+        "relevance_model",
+    ]
+    assert classified.schema.field("relevance_label").type == pa.string()
+    assert classified.schema.field("relevance_model").type == pa.string()
+    assert relevant.schema == classified.schema
+
+
+def test_transform_parquet_rejects_a_short_classifier_batch(tmp_path: Path) -> None:
+    input_path = tmp_path / "input.parquet"
+    classified_path = tmp_path / "classified.parquet"
+    relevant_path = tmp_path / "relevant.parquet"
+    pq.write_table(
+        pa.Table.from_pylist(
+            [
+                {"id": 1, "sentence": "A forest covers the slope."},
+                {"id": 2, "sentence": "A road crosses the valley."},
+            ]
+        ),
+        input_path,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="^classifier must return one label per sentence$",
+    ):
+        transform_parquet(
+            input_path,
+            classified_path,
+            relevant_path,
+            ShortClassifier(),
+        )

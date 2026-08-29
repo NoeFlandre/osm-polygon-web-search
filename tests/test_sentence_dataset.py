@@ -88,7 +88,10 @@ def test_sentence_rows_uses_batch_segmentation_when_available() -> None:
 def test_sentence_rows_rejects_a_batch_result_count_mismatch() -> None:
     model = FakeBatchedSegmenter([["Only one result"]])
 
-    with pytest.raises(ValueError, match="one result per text"):
+    with pytest.raises(
+        ValueError,
+        match="^batched sentence model must return one result per text$",
+    ):
         sentence_rows(
             [
                 {"page_url": "https://example.test/one", "text": "One."},

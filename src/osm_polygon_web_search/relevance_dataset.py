@@ -22,7 +22,9 @@ def _classify_sentences(
     for start in range(0, len(sentences), CLASSIFICATION_BATCH_SIZE):
         batch = sentences[start : start + CLASSIFICATION_BATCH_SIZE]
         batch_labels = classifier.classify_many(batch)
-        labels.extend(label for _, label in zip(batch, batch_labels, strict=True))
+        if len(batch_labels) != len(batch):
+            raise ValueError("classifier must return one label per sentence")
+        labels.extend(batch_labels)
     return labels
 
 
@@ -42,11 +44,11 @@ def classify_rows(
     labels = _classify_sentences(sentences, classifier)
     return [
         {
-            **row,
-            "relevance_label": label,
+            **sentence_rows[index],
+            "relevance_label": labels[index],
             "relevance_model": RELEVANCE_MODEL_ID,
         }
-        for row, label in zip(sentence_rows, labels, strict=True)
+        for index in range(len(sentence_rows))
     ]
 
 
@@ -85,7 +87,9 @@ def transform_parquet(
         "relevance_model",
         pa.array([RELEVANCE_MODEL_ID] * len(labels), type=pa.string()),
     )
-    relevant = classified.filter(pa.array(label == "yes" for label in labels))
+    relevant = classified.filter(
+        pa.array((label == "yes" for label in labels), type=pa.bool_())
+    )
     for output_path, rows in (
         (classified_output_path, classified),
         (relevant_output_path, relevant),
