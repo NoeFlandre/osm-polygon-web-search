@@ -3,7 +3,6 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
-import pytest
 
 from osm_polygon_web_search.sentence_dataset import sentence_rows, transform_parquet
 from osm_polygon_web_search.sentences import SAT_MODEL_ID
@@ -29,6 +28,15 @@ class FakeBatchedSegmenter:
     def split_many(self, texts: list[str]) -> list[list[str]]:
         self.inputs.append(texts)
         return self.groups
+
+
+class CountingSegmenter:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def split(self, text: str) -> list[str]:
+        self.calls.append(text)
+        return [text]
 
 
 def test_sentence_rows_expands_pages_and_retains_page_context() -> None:
@@ -104,6 +112,24 @@ def test_sentence_rows_segments_duplicate_text_once() -> None:
         ("https://example.test/one", "One.", 0),
         ("https://example.test/duplicate", "One.", 0),
         ("https://example.test/two", "Two!", 0),
+    ]
+
+
+def test_sentence_rows_keeps_scalar_model_calls_per_page() -> None:
+    model = CountingSegmenter()
+
+    rows = sentence_rows(
+        [
+            {"page_url": "https://example.test/one", "text": "One."},
+            {"page_url": "https://example.test/duplicate", "text": "One."},
+        ],
+        model,
+    )
+
+    assert model.calls == ["One.", "One."]
+    assert [row["page_url"] for row in rows] == [
+        "https://example.test/one",
+        "https://example.test/duplicate",
     ]
 
 
