@@ -67,11 +67,12 @@ those baseline evidence fields.
 ### Sentence-level output
 
 The approved Viewer transformation loads `segment-any-text/sat-3l-sm` through
-`wtpsplit` once and segments every non-empty Trafilatura page text. Each
-sentence becomes one output row. The original full page text remains in `text`
-for provenance; `sentence`, `sentence_index`, `sentence_count`, and
-`sentence_model` expose the model output and its position. Empty extracted text
-produces no sentence row.
+`wtpsplit` once and segments every non-empty Trafilatura page text through its
+bounded batch interface. A scalar compatibility interface remains available
+for injected models. Each sentence becomes one output row. The original full
+page text remains in `text` for provenance; `sentence`, `sentence_index`,
+`sentence_count`, and `sentence_model` expose the model output and its position.
+Empty extracted text produces no sentence row.
 
 ### Local relevance classification
 
@@ -85,18 +86,21 @@ is the filtered `relevance_label == "yes"` subset.
 
 ## Network and scale controls
 
-The first run is sequential and plan-only by default. Live search requires
-`--search` and `BRAVE_SEARCH_API_KEY`; a missing key is a hard configuration
-error. The adapter bounds timeouts and response sizes, retries selected 429/503
-responses with `Retry-After` or exponential backoff, and applies sequential
-delays. Future batch execution should add provider budgets, per-host
-concurrency, URL deduplication, checkpointed jobs, and a content-addressed
-cache only when the provider terms permit storing responses. The approved
-Hugging Face table contains relevant-only sentence rows with polygon geometry,
-the exact Brave query, URL, full Trafilatura-parsed text, sentence metadata,
-and model provenance for inspection. The published table omits extracted
-evidence and criteria. Raw HTML and provider responses are not published to
-Hugging Face.
+The first run is plan-only by default. Live search requires `--search` and
+`BRAVE_SEARCH_API_KEY`; a missing key is a hard configuration error. Brave
+search requests remain sequential. After each search response, page downloads
+are deduplicated by exact URL and use at most four in-memory workers; the
+results are serialized back in provider rank order. A configured positive
+page-fetch delay switches that stage to serial execution so rate limits remain
+meaningful. Only successful pages are reused within one all-variants run;
+failed URLs are retried by the existing fetch policy and are not persisted in
+the cache. At scale, provider budgets, per-host concurrency, checkpointed jobs, and
+a content-addressed cache should be added only when provider terms permit
+storing responses. The approved Hugging Face table contains relevant-only
+sentence rows with polygon geometry, the exact Brave query, URL, full
+Trafilatura-parsed text, sentence metadata, and model provenance for
+inspection. The published table omits extracted evidence and criteria. Raw
+HTML and provider responses are not published to Hugging Face.
 
 The POC intentionally does not introduce a queue, database server, browser
 automation, or embeddings. The pure candidate, query, provider, fetch, SAT,
