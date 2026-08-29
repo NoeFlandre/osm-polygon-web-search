@@ -48,7 +48,7 @@ def test_sat_sentence_model_forwards_batched_texts_and_settings() -> None:
     calls: list[tuple[object, dict[str, int]]] = []
 
     class Model:
-        def split(self, texts: object, **kwargs: int) -> list[list[object]]:
+        def split(self, texts: list[object], **kwargs: int) -> list[list[object]]:
             calls.append((texts, kwargs))
             return [[text] for text in texts]
 

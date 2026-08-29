@@ -297,7 +297,7 @@ def test_sentence_table_rejects_a_short_segmentation_result(monkeypatch) -> None
     )
 
     with pytest.raises(ValueError, match="argument 2 is shorter"):
-        _sentence_table(source, object())
+        _sentence_table(source, FakeSegmenter())
 
 
 def test_transform_parquet_allows_an_existing_output_directory(

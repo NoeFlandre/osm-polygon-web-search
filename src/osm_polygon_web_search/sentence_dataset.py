@@ -30,7 +30,9 @@ def _segment_page_texts(
         raise ValueError("batched sentence model must return one result per text")
     unique_groups = [_clean_segments(segments) for segments in grouped]
 
-    groups_by_text = dict(zip(unique_texts, unique_groups))
+    groups_by_text = {
+        text: unique_groups[index] for index, text in enumerate(unique_texts)
+    }
     return [groups_by_text[text] for text in texts]
 
 
