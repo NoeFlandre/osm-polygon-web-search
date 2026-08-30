@@ -105,7 +105,7 @@ daemon socket did not exist.
 Check the diff for runtime changes, accidental data/model paths, and unrelated
 files. Stage only the four scoped files and commit with a Conventional Commit.
 
-- [ ] **Step 2: Push and verify remote parity**
+- [x] **Step 2: Push and verify remote parity**
 
 Push `main`, verify local `HEAD` equals `origin/main`, and require a clean
 worktree.
