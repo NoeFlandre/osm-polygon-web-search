@@ -1,6 +1,6 @@
 import json
 from collections.abc import Iterable, Mapping, MutableMapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +43,32 @@ class _SelectionPlan:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class _QueryVariant:
+    id: str
+    keyword: str
+    query: str
+
+    def as_dict(self) -> dict[str, str]:
+        return {"id": self.id, "keyword": self.keyword, "query": self.query}
+
+
+@dataclass(frozen=True, slots=True)
+class _PipelinePlan:
+    selection: _SelectionPlan
+    query: str | None
+    query_variants: tuple[_QueryVariant, ...] | None = None
+
+    def as_dict(self) -> dict[str, Any]:
+        plan = self.selection.as_dict()
+        plan["query"] = self.query
+        if self.query_variants is not None:
+            plan["query_variants"] = [
+                variant.as_dict() for variant in self.query_variants
+            ]
+        return plan
+
+
 def _candidate_record(candidate: PolygonCandidate) -> dict[str, Any]:
     return {
         "identity": [candidate.osm_type, candidate.osm_id],
@@ -67,19 +93,56 @@ def _build_selection_plan(pbf_path: Path) -> _SelectionPlan:
     )
 
 
+def _build_plan(
+    pbf_path: Path,
+    *,
+    keywords: Iterable[str] = DEFAULT_KEYWORDS,
+) -> _PipelinePlan:
+    selection = _build_selection_plan(pbf_path)
+    query = (
+        build_query(selection.selected.name_raw, selection.country, keywords)
+        if selection.selected is not None
+        else None
+    )
+    return _PipelinePlan(selection=selection, query=query)
+
+
+def _build_variant_plan(
+    pbf_path: Path,
+    *,
+    variants: Sequence[tuple[str, str]] = QUERY_VARIANTS,
+) -> _PipelinePlan:
+    if not variants:
+        raise ValueError("at least one query variant is required")
+
+    selection = _build_selection_plan(pbf_path)
+    query_variants = ()
+    if selection.selected is not None:
+        query_variants = tuple(
+            _QueryVariant(
+                id=variant["id"],
+                keyword=variant["keyword"],
+                query=variant["query"],
+            )
+            for variant in build_variant_queries(
+                selection.selected.name_raw,
+                selection.country,
+                variants,
+            )
+        )
+    return _PipelinePlan(
+        selection=selection,
+        query=None,
+        query_variants=query_variants,
+    )
+
+
 def build_plan(
     pbf_path: Path,
     *,
     keywords: Iterable[str] = DEFAULT_KEYWORDS,
 ) -> dict[str, Any]:
-    selection = _build_selection_plan(pbf_path)
-    plan = selection.as_dict()
-    plan["query"] = (
-        build_query(selection.selected.name_raw, selection.country, keywords)
-        if selection.selected is not None
-        else None
-    )
-    return plan
+    return _build_plan(pbf_path, keywords=keywords).as_dict()
 
 
 def build_variant_plan(
@@ -88,18 +151,7 @@ def build_variant_plan(
     variants: Sequence[tuple[str, str]] = QUERY_VARIANTS,
 ) -> dict[str, Any]:
     """Build one candidate plan carrying the approved query variants."""
-    if not variants:
-        raise ValueError("at least one query variant is required")
-
-    selection = _build_selection_plan(pbf_path)
-    plan = selection.as_dict()
-    plan["query"] = None
-    plan["query_variants"] = (
-        build_variant_queries(selection.selected.name_raw, selection.country, variants)
-        if selection.selected is not None
-        else []
-    )
-    return plan
+    return _build_variant_plan(pbf_path, variants=variants).as_dict()
 
 
 def _serialize_search_results(
@@ -125,16 +177,16 @@ def _serialize_search_results(
 
 
 def _search_records(
-    plan: dict[str, Any],
+    plan: _PipelinePlan,
     *,
     provider: SearchProvider,
     fetcher: PageProvider,
     result_count: int,
     page_cache: MutableMapping[str, FetchedPage] | None = None,
 ) -> list[dict[str, Any]]:
-    query = plan["query"]
-    selected = plan["selected"]
-    if not isinstance(query, str) or not isinstance(selected, dict):
+    query = plan.query
+    selected = plan.selection.selected
+    if query is None or selected is None:
         return []
 
     search_results = list(provider.search(query, count=result_count))
@@ -149,12 +201,12 @@ def _search_records(
     return _serialize_search_results(
         search_results,
         pages,
-        place_name=selected["name_raw"],
+        place_name=selected.name_raw,
     )
 
 
 def _search_variant_records(
-    plan: dict[str, Any],
+    plan: _PipelinePlan,
     *,
     provider: SearchProvider,
     fetcher: PageProvider,
@@ -162,13 +214,16 @@ def _search_variant_records(
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     page_cache: dict[str, FetchedPage] = {}
-    for variant in plan["query_variants"]:
-        variant_plan = {**plan, "query": variant["query"]}
+    if plan.query_variants is None:
+        return records
+
+    for variant in plan.query_variants:
+        variant_plan = replace(plan, query=variant.query, query_variants=None)
         records.append(
             {
-                "id": variant["id"],
-                "keyword": variant["keyword"],
-                "query": variant["query"],
+                "id": variant.id,
+                "keyword": variant.keyword,
+                "query": variant.query,
                 "results": _search_records(
                     variant_plan,
                     provider=provider,
@@ -191,24 +246,25 @@ def run_poc(
     all_variants: bool = False,
 ) -> Path:
     validated_pbf = ensure_data_path(pbf_path)
-    plan = (
-        build_variant_plan(validated_pbf)
+    runtime_plan = (
+        _build_variant_plan(validated_pbf)
         if all_variants
-        else build_plan(validated_pbf, keywords=keywords)
+        else _build_plan(validated_pbf, keywords=keywords)
     )
+    plan = runtime_plan.as_dict()
     if search:
         provider = BraveSearchProvider()
         fetcher = PageFetcher()
         if all_variants:
             plan["variant_results"] = _search_variant_records(
-                plan,
+                runtime_plan,
                 provider=provider,
                 fetcher=fetcher,
                 result_count=result_count,
             )
         else:
             plan["results"] = _search_records(
-                plan,
+                runtime_plan,
                 provider=provider,
                 fetcher=fetcher,
                 result_count=result_count,

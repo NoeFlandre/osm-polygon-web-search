@@ -20,6 +20,38 @@ from osm_polygon_web_search.pipeline import (
 from osm_polygon_web_search.search import SearchProvider, SearchResult
 
 
+def _make_pipeline_plan(
+    query: str | None,
+    *,
+    place_name: str | None = "Alp X",
+    query_variants: tuple[pipeline_module._QueryVariant, ...] | None = None,
+) -> pipeline_module._PipelinePlan:
+    candidate = (
+        None
+        if place_name is None
+        else PolygonCandidate(
+            osm_type="way",
+            osm_id=42,
+            name_raw=place_name,
+            name_key=normalize_name(place_name),
+            tags={"name": place_name},
+            geometry={"type": "Polygon", "coordinates": []},
+        )
+    )
+    selection = pipeline_module._SelectionPlan(
+        pbf_path=Path("liechtenstein-latest.osm.pbf"),
+        country="Liechtenstein",
+        candidate_count=1 if candidate is not None else 0,
+        unique_candidate_count=1 if candidate is not None else 0,
+        selected=candidate,
+    )
+    return pipeline_module._PipelinePlan(
+        selection=selection,
+        query=query,
+        query_variants=query_variants,
+    )
+
+
 def test_pipeline_reexports_select_candidate() -> None:
     assert pipeline_module.select_candidate is select_candidate
 
@@ -61,6 +93,57 @@ def test_selection_plan_serializes_the_existing_selection_shape() -> None:
     }
 
 
+def test_pipeline_plan_serializes_typed_query_state() -> None:
+    candidate = PolygonCandidate(
+        osm_type="way",
+        osm_id=42,
+        name_raw="Alp X",
+        name_key=normalize_name("Alp X"),
+        tags={"name": "Alp X"},
+        geometry={"type": "Polygon", "coordinates": []},
+    )
+    selection = pipeline_module._SelectionPlan(
+        pbf_path=Path("liechtenstein-latest.osm.pbf"),
+        country="Liechtenstein",
+        candidate_count=3,
+        unique_candidate_count=1,
+        selected=candidate,
+    )
+    plan = pipeline_module._PipelinePlan(
+        selection=selection,
+        query=None,
+        query_variants=(
+            pipeline_module._QueryVariant(
+                id="v1",
+                keyword="land cover",
+                query='"Alp X" "Liechtenstein" "land cover"',
+            ),
+        ),
+    )
+
+    assert plan.as_dict() == {
+        "pbf": "liechtenstein-latest.osm.pbf",
+        "country": "Liechtenstein",
+        "candidate_count": 3,
+        "unique_candidate_count": 1,
+        "selected": {
+            "identity": ["way", 42],
+            "name_raw": "Alp X",
+            "name_key": "alp x",
+            "tags": {"name": "Alp X"},
+            "geometry": {"type": "Polygon", "coordinates": []},
+        },
+        "query": None,
+        "query_variants": [
+            {
+                "id": "v1",
+                "keyword": "land cover",
+                "query": '"Alp X" "Liechtenstein" "land cover"',
+            }
+        ],
+    }
+
+
 def test_build_plan_selects_one_unique_candidate_without_a_provider(
     monkeypatch,
 ) -> None:
@@ -84,7 +167,7 @@ def test_build_plan_selects_one_unique_candidate_without_a_provider(
         "/Volumes/Seagate M3/projects/osm-polygon-web-search/"
         "liechtenstein-latest.osm.pbf"
     )
-    plan = build_plan(pbf_path)
+    plan = build_plan(pbf_path, keywords=("terrain",))
 
     assert scanned_paths == [pbf_path]
     assert plan["country"] == "Liechtenstein"
@@ -103,7 +186,40 @@ def test_build_plan_selects_one_unique_candidate_without_a_provider(
         "tags": {"name": "Alp X"},
         "geometry": {"type": "Polygon", "coordinates": []},
     }
-    assert plan["query"] == '"Alp X" "Liechtenstein" "land cover"'
+    assert plan["query"] == '"Alp X" "Liechtenstein" terrain'
+
+
+def test_private_plan_builders_return_typed_pipeline_plans(monkeypatch) -> None:
+    candidate = PolygonCandidate(
+        osm_type="way",
+        osm_id=42,
+        name_raw="Alp X",
+        name_key=normalize_name("Alp X"),
+        tags={"name": "Alp X"},
+        geometry={"type": "Polygon", "coordinates": []},
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "scan_pbf",
+        lambda path: [candidate],
+    )
+
+    ordinary = pipeline_module._build_plan(
+        Path("liechtenstein-latest.osm.pbf"),
+        keywords=("terrain",),
+    )
+    variants = pipeline_module._build_variant_plan(
+        Path("liechtenstein-latest.osm.pbf"),
+        variants=(("v1", "land cover"),),
+    )
+
+    assert isinstance(ordinary, pipeline_module._PipelinePlan)
+    assert ordinary.query == '"Alp X" "Liechtenstein" terrain'
+    assert ordinary.query_variants is None
+    assert isinstance(variants, pipeline_module._PipelinePlan)
+    assert variants.query is None
+    assert variants.query_variants is not None
+    assert variants.query_variants[0].keyword == "land cover"
 
 
 def test_build_variant_plan_lists_all_queries_without_the_old_baseline(
@@ -223,6 +339,50 @@ def test_build_plan_reports_no_selection_when_the_pbf_has_no_candidates(
     assert plan["query"] is None
 
 
+def test_run_poc_passes_the_typed_plan_to_search_before_serializing(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    typed_plan = pipeline_module._PipelinePlan(
+        selection=pipeline_module._SelectionPlan(
+            pbf_path=tmp_path / "source.pbf",
+            country="Liechtenstein",
+            candidate_count=0,
+            unique_candidate_count=0,
+            selected=None,
+        ),
+        query=None,
+    )
+    search_plans = []
+
+    monkeypatch.setattr(
+        pipeline_module,
+        "_build_plan",
+        lambda path, *, keywords: typed_plan,
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "ensure_data_path",
+        lambda path: tmp_path,
+    )
+
+    def fake_search_records(plan, *, provider, fetcher, result_count):
+        search_plans.append(plan)
+        return []
+
+    monkeypatch.setattr(pipeline_module, "_search_records", fake_search_records)
+    monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "test-key")
+
+    output = run_poc(
+        Path("liechtenstein-latest.osm.pbf"),
+        output_dir=Path("ignored"),
+        search=True,
+    )
+
+    assert search_plans == [typed_plan]
+    assert json.loads(output.read_text())["results"] == []
+
+
 def test_search_records_skip_an_unsearchable_plan() -> None:
     class Provider:
         def search(self, query: str, *, count: int = 5) -> list[SearchResult]:
@@ -234,7 +394,30 @@ def test_search_records_skip_an_unsearchable_plan() -> None:
 
     assert (
         _search_records(
-            {"query": None, "selected": None},
+            _make_pipeline_plan(None, place_name=None),
+            provider=Provider(),
+            fetcher=Fetcher(),
+            result_count=5,
+        )
+        == []
+    )
+
+
+def test_search_records_reads_typed_query_and_selected_name() -> None:
+    plan = _make_pipeline_plan('"Alp X" "Liechtenstein" terrain')
+
+    class Provider:
+        def search(self, query: str, *, count: int = 5) -> list[SearchResult]:
+            assert query == '"Alp X" "Liechtenstein" terrain'
+            return []
+
+    class Fetcher:
+        def fetch(self, url: str) -> FetchedPage:
+            raise AssertionError(f"fetcher must not be called for {url}")
+
+    assert (
+        _search_records(
+            plan,
             provider=Provider(),
             fetcher=Fetcher(),
             result_count=5,
@@ -244,13 +427,16 @@ def test_search_records_skip_an_unsearchable_plan() -> None:
 
 
 @pytest.mark.parametrize(
-    "plan",
+    ("query", "place_name"),
     [
-        {"query": None, "selected": {"name_raw": "Alp X"}},
-        {"query": "Alp X", "selected": None},
+        (None, "Alp X"),
+        ("Alp X", None),
     ],
 )
-def test_search_records_skips_plans_with_one_missing_required_value(plan) -> None:
+def test_search_records_skips_plans_with_one_missing_required_value(
+    query: str | None,
+    place_name: str | None,
+) -> None:
     class Provider:
         def search(self, query: str, *, count: int = 5) -> list[SearchResult]:
             raise AssertionError("provider must not be called")
@@ -261,7 +447,7 @@ def test_search_records_skips_plans_with_one_missing_required_value(plan) -> Non
 
     assert (
         _search_records(
-            plan,
+            _make_pipeline_plan(query, place_name=place_name),
             provider=Provider(),
             fetcher=Fetcher(),
             result_count=5,
@@ -295,10 +481,7 @@ def test_search_records_fetches_pages_and_serializes_evidence() -> None:
             )
 
     records = _search_records(
-        {
-            "query": '"Alp X" "Liechtenstein" (geology)',
-            "selected": {"name_raw": "Alp X"},
-        },
+        _make_pipeline_plan('"Alp X" "Liechtenstein" (geology)'),
         provider=Provider(),
         fetcher=Fetcher(),
         result_count=7,
@@ -416,10 +599,7 @@ def test_search_records_skips_pages_that_cannot_be_fetched() -> None:
             )
 
     records = _search_records(
-        {
-            "query": '"Alp X" "Liechtenstein" "land cover"',
-            "selected": {"name_raw": "Alp X"},
-        },
+        _make_pipeline_plan('"Alp X" "Liechtenstein" "land cover"'),
         provider=Provider(),
         fetcher=Fetcher(),
         result_count=5,
@@ -434,26 +614,25 @@ def test_search_variant_records_runs_each_query_variant(monkeypatch) -> None:
     calls = []
 
     def fake_search_records(plan, *, provider, fetcher, result_count, page_cache=None):
-        calls.append((plan["query"], provider, fetcher, result_count, page_cache))
-        return [{"query": plan["query"]}]
+        calls.append((plan.query, provider, fetcher, result_count, page_cache))
+        return [{"query": plan.query}]
 
     monkeypatch.setattr(pipeline_module, "_search_records", fake_search_records)
-    plan = {
-        "query": None,
-        "selected": {"name_raw": "Alp X"},
-        "query_variants": [
-            {
-                "id": "v1",
-                "keyword": "land cover",
-                "query": '"Alp X" "Liechtenstein" "land cover"',
-            },
-            {
-                "id": "v2",
-                "keyword": "land use",
-                "query": '"Alp X" "Liechtenstein" "land use"',
-            },
-        ],
-    }
+    plan = _make_pipeline_plan(
+        None,
+        query_variants=(
+            pipeline_module._QueryVariant(
+                id="v1",
+                keyword="land cover",
+                query='"Alp X" "Liechtenstein" "land cover"',
+            ),
+            pipeline_module._QueryVariant(
+                id="v2",
+                keyword="land use",
+                query='"Alp X" "Liechtenstein" "land use"',
+            ),
+        ),
+    )
 
     provider = cast(SearchProvider, object())
     fetcher = cast(PageProvider, object())
@@ -484,6 +663,56 @@ def test_search_variant_records_runs_each_query_variant(monkeypatch) -> None:
     assert calls[0][4] is calls[1][4]
 
 
+def test_search_variant_records_reads_typed_variants(monkeypatch) -> None:
+    variant = pipeline_module._QueryVariant(
+        id="v1",
+        keyword="land cover",
+        query='"Alp X" "Liechtenstein" "land cover"',
+    )
+    plan = _make_pipeline_plan(
+        None,
+        place_name=None,
+        query_variants=(variant,),
+    )
+    search_plans = []
+
+    def fake_search_records(plan, *, provider, fetcher, result_count, page_cache=None):
+        search_plans.append(plan)
+        return []
+
+    monkeypatch.setattr(pipeline_module, "_search_records", fake_search_records)
+
+    records = pipeline_module._search_variant_records(
+        plan,
+        provider=cast(SearchProvider, object()),
+        fetcher=cast(PageProvider, object()),
+        result_count=5,
+    )
+
+    assert search_plans[0].query == variant.query
+    assert search_plans[0].query_variants is None
+    assert records == [
+        {
+            "id": "v1",
+            "keyword": "land cover",
+            "query": variant.query,
+            "results": [],
+        }
+    ]
+
+
+def test_search_variant_records_skips_an_ordinary_plan() -> None:
+    assert (
+        pipeline_module._search_variant_records(
+            _make_pipeline_plan(None),
+            provider=cast(SearchProvider, object()),
+            fetcher=cast(PageProvider, object()),
+            result_count=5,
+        )
+        == []
+    )
+
+
 def test_search_variant_records_shares_a_page_cache(monkeypatch) -> None:
     caches = []
 
@@ -494,12 +723,13 @@ def test_search_variant_records_shares_a_page_cache(monkeypatch) -> None:
     monkeypatch.setattr(pipeline_module, "_search_records", fake_search_records)
 
     pipeline_module._search_variant_records(
-        {
-            "query_variants": [
-                {"id": "v1", "keyword": "one", "query": "one"},
-                {"id": "v2", "keyword": "two", "query": "two"},
-            ]
-        },
+        _make_pipeline_plan(
+            None,
+            query_variants=(
+                pipeline_module._QueryVariant("v1", "one", "one"),
+                pipeline_module._QueryVariant("v2", "two", "two"),
+            ),
+        ),
         provider=cast(SearchProvider, object()),
         fetcher=cast(PageProvider, object()),
         result_count=5,
@@ -532,7 +762,7 @@ def test_search_records_uses_serial_fetching_when_delay_is_configured(
             raise AssertionError(f"fetch should be stubbed for {url}")
 
     _search_records(
-        {"query": "Alp X", "selected": {"name_raw": "Alp X"}},
+        _make_pipeline_plan("Alp X"),
         provider=Provider(),
         fetcher=Fetcher(),
         result_count=5,
@@ -561,7 +791,7 @@ def test_search_records_uses_concurrency_when_fetcher_has_no_delay_attribute(
             raise AssertionError(f"fetch should be stubbed for {url}")
 
     _search_records(
-        {"query": "Alp X", "selected": {"name_raw": "Alp X"}},
+        _make_pipeline_plan("Alp X"),
         provider=Provider(),
         fetcher=Fetcher(),
         result_count=5,
@@ -589,7 +819,7 @@ def test_search_records_forwards_the_page_cache(monkeypatch) -> None:
 
     page_cache = {}
     _search_records(
-        {"query": "Alp X", "selected": {"name_raw": "Alp X"}},
+        _make_pipeline_plan("Alp X"),
         provider=Provider(),
         fetcher=Fetcher(),
         result_count=5,
@@ -605,16 +835,13 @@ def test_run_poc_writes_the_manifest_inside_the_validated_output_path(
     monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "test-key")
 
     build_calls = []
-    built_plan = {"query": None, "selected": None}
+    built_plan = _make_pipeline_plan(None, place_name=None)
 
-    def fake_build_plan(path, keywords):
+    def fake_build_plan(path, *, keywords):
         build_calls.append((path, keywords))
         return built_plan
 
-    monkeypatch.setattr(
-        "osm_polygon_web_search.pipeline.build_plan",
-        fake_build_plan,
-    )
+    monkeypatch.setattr(pipeline_module, "_build_plan", fake_build_plan)
 
     ensured_paths = []
 
@@ -658,9 +885,11 @@ def test_run_poc_writes_the_manifest_inside_the_validated_output_path(
 
 
 def test_run_poc_writes_a_plan_without_live_search(monkeypatch, tmp_path) -> None:
+    plan = _make_pipeline_plan(None, place_name=None)
     monkeypatch.setattr(
-        "osm_polygon_web_search.pipeline.build_plan",
-        lambda path, keywords: {"query": None, "selected": None},
+        pipeline_module,
+        "_build_plan",
+        lambda path, *, keywords: plan,
     )
     output_dir = tmp_path / "nested" / "run"
     monkeypatch.setattr(
@@ -674,7 +903,7 @@ def test_run_poc_writes_a_plan_without_live_search(monkeypatch, tmp_path) -> Non
     )
 
     assert output.exists()
-    assert output.read_text() == '{\n  "query": null,\n  "selected": null\n}\n'
+    assert json.loads(output.read_text()) == plan.as_dict()
     assert '"results"' not in output.read_text()
 
 
@@ -682,10 +911,11 @@ def test_run_poc_streams_json_without_building_a_second_string(
     monkeypatch,
     tmp_path,
 ) -> None:
-    plan = {"query": None, "selected": None}
+    plan = _make_pipeline_plan(None, place_name=None)
     monkeypatch.setattr(
-        "osm_polygon_web_search.pipeline.build_plan",
-        lambda path, keywords: plan,
+        pipeline_module,
+        "_build_plan",
+        lambda path, *, keywords: plan,
     )
     monkeypatch.setattr(
         "osm_polygon_web_search.pipeline.ensure_data_path",
@@ -703,16 +933,16 @@ def test_run_poc_streams_json_without_building_a_second_string(
         search=False,
     )
 
-    assert json.loads(output.read_text()) == plan
+    assert json.loads(output.read_text()) == plan.as_dict()
     assert output.read_text().endswith("\n")
 
 
 def test_run_poc_writes_utf8_json_with_unicode_preserved(monkeypatch, tmp_path) -> None:
-    plan = {"place": "München"}
+    plan = _make_pipeline_plan(None, place_name="München")
     monkeypatch.setattr(
         pipeline_module,
-        "build_plan",
-        lambda path, keywords: plan,
+        "_build_plan",
+        lambda path, *, keywords: plan,
     )
     monkeypatch.setattr(
         pipeline_module,
@@ -742,7 +972,11 @@ def test_run_poc_writes_all_variant_results(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "test-key")
 
     variant_plan_calls = []
-    built_plan = {"query": None, "query_variants": []}
+    built_plan = _make_pipeline_plan(
+        None,
+        place_name=None,
+        query_variants=(),
+    )
 
     def fake_build_variant_plan(path):
         variant_plan_calls.append(path)
@@ -750,7 +984,7 @@ def test_run_poc_writes_all_variant_results(monkeypatch, tmp_path) -> None:
 
     monkeypatch.setattr(
         pipeline_module,
-        "build_variant_plan",
+        "_build_variant_plan",
         fake_build_variant_plan,
     )
 
