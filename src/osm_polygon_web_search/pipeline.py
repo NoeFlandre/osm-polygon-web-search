@@ -1,6 +1,6 @@
 import json
 from collections.abc import Iterable, Mapping, MutableMapping, Sequence
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +23,26 @@ DEFAULT_PBF = data_root() / "liechtenstein-latest.osm.pbf"
 DEFAULT_KEYWORDS = ("land cover",)
 
 
+@dataclass(frozen=True, slots=True)
+class _SelectionPlan:
+    pbf_path: Path
+    country: str
+    candidate_count: int
+    unique_candidate_count: int
+    selected: PolygonCandidate | None
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "pbf": str(self.pbf_path),
+            "country": self.country,
+            "candidate_count": self.candidate_count,
+            "unique_candidate_count": self.unique_candidate_count,
+            "selected": (
+                _candidate_record(self.selected) if self.selected is not None else None
+            ),
+        }
+
+
 def _candidate_record(candidate: PolygonCandidate) -> dict[str, Any]:
     return {
         "identity": [candidate.osm_type, candidate.osm_id],
@@ -33,18 +53,18 @@ def _candidate_record(candidate: PolygonCandidate) -> dict[str, Any]:
     }
 
 
-def _build_selection_plan(pbf_path: Path) -> dict[str, Any]:
+def _build_selection_plan(pbf_path: Path) -> _SelectionPlan:
     candidates = scan_pbf(pbf_path)
     unique = unique_candidates(candidates)
     selected = select_candidate(unique)
     country = country_from_pbf(pbf_path)
-    return {
-        "pbf": str(pbf_path),
-        "country": country,
-        "candidate_count": len(candidates),
-        "unique_candidate_count": len(unique),
-        "selected": _candidate_record(selected) if selected is not None else None,
-    }
+    return _SelectionPlan(
+        pbf_path=pbf_path,
+        country=country,
+        candidate_count=len(candidates),
+        unique_candidate_count=len(unique),
+        selected=selected,
+    )
 
 
 def build_plan(
@@ -52,14 +72,13 @@ def build_plan(
     *,
     keywords: Iterable[str] = DEFAULT_KEYWORDS,
 ) -> dict[str, Any]:
-    plan = _build_selection_plan(pbf_path)
-    selected = plan["selected"]
-    query = (
-        build_query(selected["name_raw"], plan["country"], keywords)
-        if isinstance(selected, dict)
+    selection = _build_selection_plan(pbf_path)
+    plan = selection.as_dict()
+    plan["query"] = (
+        build_query(selection.selected.name_raw, selection.country, keywords)
+        if selection.selected is not None
         else None
     )
-    plan["query"] = query
     return plan
 
 
@@ -72,12 +91,12 @@ def build_variant_plan(
     if not variants:
         raise ValueError("at least one query variant is required")
 
-    plan = _build_selection_plan(pbf_path)
-    selected = plan["selected"]
+    selection = _build_selection_plan(pbf_path)
+    plan = selection.as_dict()
     plan["query"] = None
     plan["query_variants"] = (
-        build_variant_queries(selected["name_raw"], plan["country"], variants)
-        if isinstance(selected, dict)
+        build_variant_queries(selection.selected.name_raw, selection.country, variants)
+        if selection.selected is not None
         else []
     )
     return plan

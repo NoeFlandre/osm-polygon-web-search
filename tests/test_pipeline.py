@@ -28,6 +28,39 @@ def test_pipeline_preserves_the_legacy_path_boundary_alias() -> None:
     assert pipeline_module.ensure_data_path is data_root_ensure_data_path
 
 
+def test_selection_plan_serializes_the_existing_selection_shape() -> None:
+    candidate = PolygonCandidate(
+        osm_type="way",
+        osm_id=42,
+        name_raw="Alp X",
+        name_key=normalize_name("Alp X"),
+        tags={"name": "Alp X"},
+        geometry={"type": "Polygon", "coordinates": []},
+    )
+
+    selection = pipeline_module._SelectionPlan(
+        pbf_path=Path("liechtenstein-latest.osm.pbf"),
+        country="Liechtenstein",
+        candidate_count=3,
+        unique_candidate_count=1,
+        selected=candidate,
+    )
+
+    assert selection.as_dict() == {
+        "pbf": "liechtenstein-latest.osm.pbf",
+        "country": "Liechtenstein",
+        "candidate_count": 3,
+        "unique_candidate_count": 1,
+        "selected": {
+            "identity": ["way", 42],
+            "name_raw": "Alp X",
+            "name_key": "alp x",
+            "tags": {"name": "Alp X"},
+            "geometry": {"type": "Polygon", "coordinates": []},
+        },
+    }
+
+
 def test_build_plan_selects_one_unique_candidate_without_a_provider(
     monkeypatch,
 ) -> None:
