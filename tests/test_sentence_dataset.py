@@ -91,6 +91,16 @@ def test_source_text_inputs_uses_the_shared_text_input_boundary(monkeypatch) -> 
     assert calls == [[(0, "First."), (1, None), (2, "")]]
 
 
+def test_source_text_inputs_exposes_named_fields() -> None:
+    source = pa.table({"text": pa.array(["First.", None, ""])})
+
+    inputs = _source_text_inputs(source)
+
+    assert inputs.source_indices == [0, 2]
+    assert inputs.texts == ["First.", ""]
+    assert inputs == ([0, 2], ["First.", ""])
+
+
 def test_sentence_rows_expands_pages_and_retains_page_context() -> None:
     pages = [
         {

@@ -104,22 +104,27 @@ def sentence_rows(
     return expanded
 
 
-def _source_text_inputs(source: Any) -> tuple[list[int], list[str]]:
+class _SourceTextInputs(NamedTuple):
+    source_indices: list[int]
+    texts: list[str]
+
+
+def _source_text_inputs(source: Any) -> _SourceTextInputs:
     text_values = source["text"].to_pylist() if "text" in source.column_names else []
     source_indices: list[int] = []
     texts: list[str] = []
     for index, text in _iter_text_inputs(enumerate(text_values)):
         source_indices.append(index)
         texts.append(text)
-    return source_indices, texts
+    return _SourceTextInputs(source_indices, texts)
 
 
 def _sentence_table(source: Any, model: SentenceModel) -> Any:
     import pyarrow as pa
 
-    source_indices, texts = _source_text_inputs(source)
-    sentence_groups = _segment_page_texts(texts, model)
-    expansion = _expand_sentence_groups(source_indices, sentence_groups)
+    inputs = _source_text_inputs(source)
+    sentence_groups = _segment_page_texts(inputs.texts, model)
+    expansion = _expand_sentence_groups(inputs.source_indices, sentence_groups)
 
     selected = source.take(pa.array(expansion.repeated_indices, type=pa.int64()))
     return (
