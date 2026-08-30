@@ -367,7 +367,7 @@ UV_NO_SYNC=1 UV_CACHE_DIR=/private/tmp/osm-polygon-web-search-uv-cache-20260830 
 Expected: zero surviving or unresolved mutants, a successful wheel build, and
 either a successful Docker build or a documented local-daemon limitation.
 
-- [ ] **Step 4: Commit and publish only the scoped changes**
+- [x] **Step 4: Commit and publish only the scoped changes**
 
 Run:
 
