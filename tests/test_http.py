@@ -4,7 +4,11 @@ from urllib.request import Request
 
 import pytest
 
-from osm_polygon_web_search.http import HTTPRequestError, request_bytes
+from osm_polygon_web_search.http import (
+    HTTPRequestError,
+    is_success_status,
+    request_bytes,
+)
 
 
 class Response:
@@ -28,6 +32,17 @@ class Response:
 
     def __exit__(self, *args: object) -> None:
         return None
+
+
+@pytest.mark.parametrize(
+    ("status", "expected"),
+    [(199, False), (200, True), (299, True), (300, False)],
+)
+def test_is_success_status_uses_the_http_2xx_range(
+    status: int,
+    expected: bool,
+) -> None:
+    assert is_success_status(status) is expected
 
 
 def test_request_bytes_returns_response_data() -> None:

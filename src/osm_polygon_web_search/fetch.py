@@ -6,7 +6,7 @@ from functools import partial
 from typing import Any, Protocol
 from urllib.request import Request, urlopen
 
-from .http import HTTPRequestError, HTTPResponse, request_bytes
+from .http import HTTPRequestError, HTTPResponse, is_success_status, request_bytes
 from .text import extract_text
 
 
@@ -78,7 +78,7 @@ def _page_payload(response: HTTPResponse, url: str, max_bytes: int) -> bytes:
         raise PageFetchError(
             f"page request failed for {url}: {response.error}"
         ) from response.error
-    if response.status < 200 or response.status >= 300:
+    if not is_success_status(response.status):
         raise PageFetchError(f"page request returned HTTP {response.status} for {url}")
     if len(response.payload) > max_bytes:
         raise PageFetchError(f"page exceeded {max_bytes} bytes: {url}")

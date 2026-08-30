@@ -20,6 +20,10 @@ class HTTPResponse:
     error: HTTPError | None
 
 
+def is_success_status(status: int) -> bool:
+    return 200 <= status < 300
+
+
 def request_bytes(
     request: Request,
     *,

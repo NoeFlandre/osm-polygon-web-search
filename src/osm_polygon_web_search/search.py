@@ -7,7 +7,7 @@ from typing import Any, Protocol
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from .http import HTTPRequestError, request_bytes
+from .http import HTTPRequestError, is_success_status, request_bytes
 
 
 class SearchProviderError(RuntimeError):
@@ -86,7 +86,7 @@ class BraveSearchProvider:
             raise SearchProviderError(
                 f"Brave search request failed: {response.error}"
             ) from response.error
-        if response.status < 200 or response.status >= 300:
+        if not is_success_status(response.status):
             raise SearchProviderError(f"Brave search returned HTTP {response.status}")
 
         return _parse_results(response.payload)
