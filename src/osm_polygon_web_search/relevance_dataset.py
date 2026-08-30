@@ -30,6 +30,17 @@ def _iter_sentence_inputs(
             yield source, sentence
 
 
+def _collect_sentence_inputs(
+    values: Iterable[tuple[SourceT, object]],
+) -> tuple[list[SourceT], list[str]]:
+    sources: list[SourceT] = []
+    sentences: list[str] = []
+    for source, sentence in _iter_sentence_inputs(values):
+        sources.append(source)
+        sentences.append(sentence)
+    return sources, sentences
+
+
 def _classify_sentences(
     sentences: Sequence[str],
     classifier: RelevanceClassifier,
@@ -49,12 +60,10 @@ def classify_rows(
     classifier: RelevanceClassifier,
 ) -> list[dict[str, Any]]:
     """Add one strict local relevance label to every non-empty sentence row."""
-    sentence_rows: list[dict[str, Any]] = []
-    sentences: list[str] = []
-    inputs = ((row, row.get("sentence")) for row in rows)
-    for row, sentence in _iter_sentence_inputs(inputs):
-        sentence_rows.append(dict(row))
-        sentences.append(sentence)
+    source_rows, sentences = _collect_sentence_inputs(
+        (row, row.get("sentence")) for row in rows
+    )
+    sentence_rows = [dict(row) for row in source_rows]
 
     labels = _classify_sentences(sentences, classifier)
     return [
@@ -86,11 +95,7 @@ def transform_parquet(
     sentence_values = (
         source["sentence"].to_pylist() if "sentence" in source.column_names else []
     )
-    valid_indices: list[int] = []
-    sentences: list[str] = []
-    for index, sentence in _iter_sentence_inputs(enumerate(sentence_values)):
-        valid_indices.append(index)
-        sentences.append(sentence)
+    valid_indices, sentences = _collect_sentence_inputs(enumerate(sentence_values))
 
     selected = source.take(pa.array(valid_indices, type=pa.int64()))
     labels = _classify_sentences(sentences, classifier)

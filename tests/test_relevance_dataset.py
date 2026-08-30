@@ -7,6 +7,7 @@ import pytest
 
 from osm_polygon_web_search.llm_relevance import RELEVANCE_MODEL_ID, RelevanceLabel
 from osm_polygon_web_search.relevance_dataset import (
+    _collect_sentence_inputs,
     _non_empty_sentence,
     classify_rows,
     relevant_rows,
@@ -84,6 +85,20 @@ def test_iter_sentence_inputs_keeps_sources_and_skips_blank_values() -> None:
         (4, "A sentence."),
         (7, "  Another sentence.  "),
     ]
+
+
+def test_collect_sentence_inputs_preserves_valid_source_order() -> None:
+    assert _collect_sentence_inputs(
+        [
+            (4, "A sentence."),
+            (5, "  "),
+            (6, None),
+            (7, "  Another sentence.  "),
+        ]
+    ) == (
+        [4, 7],
+        ["A sentence.", "  Another sentence.  "],
+    )
 
 
 def test_classify_rows_uses_the_shared_sentence_input_boundary(monkeypatch) -> None:
