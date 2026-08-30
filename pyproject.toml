@@ -74,6 +74,7 @@ only_mutate = [
   "src/osm_polygon_web_search/names.py",
   "src/osm_polygon_web_search/candidates.py",
   "src/osm_polygon_web_search/country.py",
+  "src/osm_polygon_web_search/data_root.py",
   "src/osm_polygon_web_search/queries.py",
   "src/osm_polygon_web_search/pbf.py",
   "src/osm_polygon_web_search/relevance.py",

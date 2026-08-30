@@ -6,7 +6,7 @@ from typing import Any
 
 from .candidates import PolygonCandidate, select_candidate, unique_candidates
 from .country import country_from_pbf
-from .data_root import data_root
+from .data_root import data_root, ensure_data_path
 from .fetch import (
     PAGE_FETCH_WORKERS,
     FetchedPage,
@@ -21,19 +21,6 @@ from .search import BraveSearchProvider, SearchProvider
 
 DEFAULT_PBF = data_root() / "liechtenstein-latest.osm.pbf"
 DEFAULT_KEYWORDS = ("land cover",)
-
-
-def ensure_data_path(path: Path) -> Path:
-    """Return a path only when it is inside the configured data root."""
-    root = data_root().resolve()
-    candidate = path.expanduser().resolve()
-    try:
-        candidate.relative_to(root)
-    except ValueError as error:
-        raise ValueError(
-            f"path must stay under the configured data root: {path}"
-        ) from error
-    return candidate
 
 
 def _candidate_record(candidate: PolygonCandidate) -> dict[str, Any]:

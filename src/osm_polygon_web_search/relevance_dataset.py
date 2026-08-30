@@ -3,12 +3,12 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .data_root import ensure_data_path
 from .llm_relevance import (
     RELEVANCE_MODEL_ID,
     RelevanceClassifier,
     RelevanceLabel,
 )
-from .pipeline import ensure_data_path
 from .relevance_model import load_lfm_classifier
 
 CLASSIFICATION_BATCH_SIZE = 16

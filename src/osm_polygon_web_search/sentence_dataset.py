@@ -3,7 +3,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from .pipeline import ensure_data_path
+from .data_root import ensure_data_path
 from .sentences import (
     SAT_MODEL_ID,
     SentenceModel,
