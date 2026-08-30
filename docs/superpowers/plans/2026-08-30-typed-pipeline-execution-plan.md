@@ -182,7 +182,7 @@ def test_private_plan_builders_return_typed_pipeline_plans(monkeypatch) -> None:
 - [x] Run `UV_NO_SYNC=1 UV_CACHE_DIR=/private/tmp/osm-polygon-web-search-uv-cache-20260830 uv run ruff check --select C901,FURB .` and `UV_NO_SYNC=1 UV_CACHE_DIR=/private/tmp/osm-polygon-web-search-uv-cache-20260830 uv run pre-commit run --all-files`.
 - [x] Move generated mutation artifacts to `/private/tmp/`, run fresh `UV_NO_SYNC=1 UV_CACHE_DIR=/private/tmp/osm-polygon-web-search-uv-cache-20260830 uv run mutmut run --max-children 4`, and require an empty `mutmut results` report. The initial fresh run found two untested argument-forwarding mutants; focused contracts killed both, and the final full run reported 1,566/1,566 killed.
 - [x] Run `UV_NO_SYNC=1 UV_CACHE_DIR=/private/tmp/osm-polygon-web-search-uv-cache-20260830 uv build --wheel`; record the local Docker-daemon limitation because `just docker` could not connect, without altering source behavior.
-- [ ] Inspect `git diff --check`, stage only the four scoped files, commit with `refactor: type the pipeline execution plan`, push `main`, and verify `git rev-parse HEAD` equals `git ls-remote origin refs/heads/main` with a clean worktree.
+- [x] Inspect `git diff --check`, stage only the four scoped files, commit with `refactor: type the pipeline execution plan`, push `main`, and verify `git rev-parse HEAD` equals `git ls-remote origin refs/heads/main` with a clean worktree.
 
 ### Verification record
 
