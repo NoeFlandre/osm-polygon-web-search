@@ -36,6 +36,23 @@ def _segment_page_texts(
     return [groups_by_text[text] for text in texts]
 
 
+def _expand_sentence_groups(
+    source_indices: Sequence[int],
+    sentence_groups: Sequence[Sequence[str]],
+) -> tuple[list[int], list[str], list[int], list[int]]:
+    repeated_indices: list[int] = []
+    sentence_values: list[str] = []
+    sentence_indices: list[int] = []
+    sentence_counts: list[int] = []
+    for source_index, sentences in zip(source_indices, sentence_groups, strict=True):
+        count = len(sentences)
+        repeated_indices.extend([source_index] * count)
+        sentence_values.extend(sentences)
+        sentence_indices.extend(range(count))
+        sentence_counts.extend([count] * count)
+    return repeated_indices, sentence_values, sentence_indices, sentence_counts
+
+
 def sentence_rows(
     rows: Iterable[Mapping[str, Any]],
     model: SentenceModel,
@@ -66,9 +83,7 @@ def sentence_rows(
     return expanded
 
 
-def _sentence_table(source: Any, model: SentenceModel) -> Any:
-    import pyarrow as pa
-
+def _source_text_inputs(source: Any) -> tuple[list[int], list[str]]:
     text_values = source["text"].to_pylist() if "text" in source.column_names else []
     source_indices: list[int] = []
     texts: list[str] = []
@@ -76,18 +91,20 @@ def _sentence_table(source: Any, model: SentenceModel) -> Any:
         if isinstance(text, str):
             source_indices.append(index)
             texts.append(text)
+    return source_indices, texts
 
+
+def _sentence_table(source: Any, model: SentenceModel) -> Any:
+    import pyarrow as pa
+
+    source_indices, texts = _source_text_inputs(source)
     sentence_groups = _segment_page_texts(texts, model)
-    repeated_indices: list[int] = []
-    sentence_values: list[str] = []
-    sentence_indices: list[int] = []
-    sentence_counts: list[int] = []
-    for source_index, sentences in zip(source_indices, sentence_groups, strict=True):
-        count = len(sentences)
-        repeated_indices.extend([source_index] * count)
-        sentence_values.extend(sentences)
-        sentence_indices.extend(range(count))
-        sentence_counts.extend([count] * count)
+    (
+        repeated_indices,
+        sentence_values,
+        sentence_indices,
+        sentence_counts,
+    ) = _expand_sentence_groups(source_indices, sentence_groups)
 
     selected = source.take(pa.array(repeated_indices, type=pa.int64()))
     return (

@@ -152,6 +152,28 @@ def test_sentence_rows_rejects_a_batch_result_count_mismatch() -> None:
         )
 
 
+def test_expand_sentence_groups_preserves_arrow_row_order_and_metadata() -> None:
+    from osm_polygon_web_search.sentence_dataset import _expand_sentence_groups
+
+    assert _expand_sentence_groups(
+        [4, 9],
+        [["First.", "Second!"], ["Third?"]],
+    ) == (
+        [4, 4, 9],
+        ["First.", "Second!", "Third?"],
+        [0, 1, 0],
+        [2, 2, 1],
+    )
+
+
+def test_source_text_inputs_keeps_string_rows_in_source_order() -> None:
+    from osm_polygon_web_search.sentence_dataset import _source_text_inputs
+
+    source = pa.table({"text": pa.array(["First.", None, ""])})
+
+    assert _source_text_inputs(source) == ([0, 2], ["First.", ""])
+
+
 def test_sentence_rows_does_not_call_a_batch_model_without_page_text() -> None:
     model = FakeBatchedSegmenter([])
 
