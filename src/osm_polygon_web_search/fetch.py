@@ -27,6 +27,9 @@ class PageProvider(Protocol):
 
 
 PAGE_FETCH_WORKERS = 4
+_ACCEPT_HEADER = "Accept"
+_HTML_ACCEPT = "text/html,application/xhtml+xml"
+_USER_AGENT_HEADER = "User-Agent"
 
 
 def _fetch_or_skip(fetcher: PageProvider, url: str) -> FetchedPage | None:
@@ -108,8 +111,8 @@ class PageFetcher:
         request = Request(
             url,
             headers={
-                "Accept": "text/html,application/xhtml+xml",
-                "User-Agent": self.user_agent,
+                _ACCEPT_HEADER: _HTML_ACCEPT,
+                _USER_AGENT_HEADER: self.user_agent,
             },
         )
         if self.min_delay_seconds:
@@ -130,7 +133,7 @@ class PageFetcher:
             raise PageFetchError(f"page request failed for {url}: {cause}") from error
 
         payload = _page_payload(response, url, self.max_bytes)
-        html = payload.decode("utf-8", errors="replace")
+        html = payload.decode(errors="replace")
         return FetchedPage(
             url=url,
             status=response.status,

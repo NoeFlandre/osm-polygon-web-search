@@ -1,3 +1,4 @@
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
@@ -119,6 +120,18 @@ def test_ruff_enforces_the_crap_complexity_ceiling() -> None:
     text = (ROOT / "pyproject.toml").read_text()
     assert 'select = ["B", "C4", "C90", "E", "F", "I", "SIM", "UP"]' in text
     assert "max-complexity = 5" in text
+
+
+def test_mutation_scope_covers_every_runtime_module() -> None:
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    configured = set(config["tool"]["mutmut"]["only_mutate"])
+    runtime_modules = {
+        path.relative_to(ROOT).as_posix()
+        for path in (ROOT / "src" / "osm_polygon_web_search").glob("*.py")
+        if path.name != "__init__.py"
+    }
+
+    assert runtime_modules <= configured
 
 
 def test_dataset_card_matches_the_published_schema() -> None:

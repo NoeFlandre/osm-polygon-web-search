@@ -23,7 +23,15 @@ class SearchResult:
 
 
 class SearchProvider(Protocol):
-    def search(self, query: str, *, count: int = 5) -> list[SearchResult]: ...
+    def search(
+        self, query: str, *, count: int = 5
+    ) -> list[SearchResult]:  # pragma: no mutate block
+        ...
+
+
+_ACCEPT_HEADER = "Accept"
+_JSON_ACCEPT = "application/json"
+_SUBSCRIPTION_TOKEN_HEADER = "X-Subscription-Token"
 
 
 class BraveSearchProvider:
@@ -38,7 +46,7 @@ class BraveSearchProvider:
         backoff_seconds: float = 1.0,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
-        self.api_key = api_key or os.environ.get("BRAVE_SEARCH_API_KEY", "")
+        self.api_key = api_key or os.environ.get("BRAVE_SEARCH_API_KEY") or ""
         if not self.api_key:
             raise SearchProviderError(
                 "BRAVE_SEARCH_API_KEY is required for live Brave searches"
@@ -55,8 +63,8 @@ class BraveSearchProvider:
         request = Request(
             f"{self.base_url}?{params}",
             headers={
-                "Accept": "application/json",
-                "X-Subscription-Token": self.api_key,
+                _ACCEPT_HEADER: _JSON_ACCEPT,
+                _SUBSCRIPTION_TOKEN_HEADER: self.api_key,
             },
         )
         try:

@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterable, MutableMapping, Sequence
+from collections.abc import Iterable, Mapping, MutableMapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -17,7 +17,7 @@ from .fetch import (
 from .pbf import scan_pbf
 from .queries import QUERY_VARIANTS, build_query, build_variant_queries
 from .relevance import find_evidence
-from .search import BraveSearchProvider, SearchProvider
+from .search import BraveSearchProvider, SearchProvider, SearchResult
 
 DEFAULT_PBF = data_root() / "liechtenstein-latest.osm.pbf"
 DEFAULT_KEYWORDS = ("land cover",)
@@ -83,6 +83,28 @@ def build_variant_plan(
     return plan
 
 
+def _serialize_search_results(
+    search_results: Sequence[SearchResult],
+    pages: Mapping[str, FetchedPage],
+    *,
+    place_name: str,
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for result in search_results:
+        page = pages.get(result.url)
+        if page is None:
+            continue
+        evidence = find_evidence(page.text or "", place_name=place_name)
+        records.append(
+            {
+                "result": asdict(result),
+                "page": {"url": page.url, "status": page.status},
+                "evidence": [asdict(item) for item in evidence],
+            }
+        )
+    return records
+
+
 def _search_records(
     plan: dict[str, Any],
     *,
@@ -105,20 +127,11 @@ def _search_records(
             1 if getattr(fetcher, "min_delay_seconds", 0.0) > 0 else PAGE_FETCH_WORKERS
         ),
     )
-    results: list[dict[str, Any]] = []
-    for result in search_results:
-        page = pages.get(result.url)
-        if page is None:
-            continue
-        evidence = find_evidence(page.text or "", place_name=selected["name_raw"])
-        results.append(
-            {
-                "result": asdict(result),
-                "page": {"url": page.url, "status": page.status},
-                "evidence": [asdict(item) for item in evidence],
-            }
-        )
-    return results
+    return _serialize_search_results(
+        search_results,
+        pages,
+        place_name=selected["name_raw"],
+    )
 
 
 def _search_variant_records(

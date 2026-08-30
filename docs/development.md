@@ -25,10 +25,12 @@ Run the complete local gate from the repository root:
     uv run pre-commit run --all-files
 
 Mutation testing must complete with zero surviving or unresolved mutants in
-the deterministic domain modules configured in `pyproject.toml`. Network,
-Trafilatura, CLI, and orchestration adapters remain covered by normal tests;
-they are not useful mutation targets without introducing brittle test seams.
-A partial run is reported as incomplete, not as a passing quality gate.
+every runtime module listed in `tool.mutmut.only_mutate`. The `SearchProvider`
+protocol signature is a non-executable typing boundary and is explicitly
+excluded with a `# pragma: no mutate block`; all generated mutants are still
+tested. The JSON `ensure_ascii=None` equivalent is excluded by the documented
+pattern in `pyproject.toml`. A partial run is reported as incomplete, not as a
+passing quality gate.
 
 Ruff's C90 gate caps cyclomatic complexity at 5. Together with the required
 100% line and branch coverage, this keeps each covered function's CRAP score

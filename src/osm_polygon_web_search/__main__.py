@@ -8,8 +8,6 @@ from .pipeline import DEFAULT_KEYWORDS, DEFAULT_PBF, run_poc
 
 
 def main(argv: Sequence[str] | None = None) -> None:
-    if argv is None:
-        argv = ()
     if not argv:
         print(data_root())
         return

@@ -1,3 +1,4 @@
+import osm_polygon_web_search.text as text_module
 from osm_polygon_web_search.relevance import find_evidence
 from osm_polygon_web_search.text import extract_text
 
@@ -66,3 +67,21 @@ def test_empty_html_has_no_extracted_text() -> None:
         extract_text("<html><head><title>Empty</title></head><body></body></html>")
         is None
     )
+
+
+def test_extract_text_uses_the_minimal_trafilatura_configuration(monkeypatch) -> None:
+    calls = []
+
+    def fake_extract(html, **kwargs):
+        calls.append((html, kwargs))
+        return "  extracted text  "
+
+    monkeypatch.setattr(text_module.trafilatura, "extract", fake_extract)
+
+    assert extract_text("<p>source</p>") == "extracted text"
+    assert calls == [
+        (
+            "<p>source</p>",
+            {"include_comments": False, "include_tables": False},
+        )
+    ]
