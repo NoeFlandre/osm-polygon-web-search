@@ -14,6 +14,12 @@ from .relevance_model import load_lfm_classifier
 CLASSIFICATION_BATCH_SIZE = 16
 
 
+def _non_empty_sentence(value: object) -> str | None:
+    if isinstance(value, str) and value.strip():
+        return value
+    return None
+
+
 def _classify_sentences(
     sentences: Sequence[str],
     classifier: RelevanceClassifier,
@@ -33,14 +39,15 @@ def classify_rows(
     classifier: RelevanceClassifier,
 ) -> list[dict[str, Any]]:
     """Add one strict local relevance label to every non-empty sentence row."""
-    sentence_rows = []
+    sentence_rows: list[dict[str, Any]] = []
+    sentences: list[str] = []
     for row in rows:
-        sentence = row.get("sentence")
-        if not isinstance(sentence, str) or not sentence.strip():
+        sentence = _non_empty_sentence(row.get("sentence"))
+        if sentence is None:
             continue
         sentence_rows.append(dict(row))
+        sentences.append(sentence)
 
-    sentences = [row["sentence"] for row in sentence_rows]
     labels = _classify_sentences(sentences, classifier)
     return [
         {
@@ -73,8 +80,9 @@ def transform_parquet(
     )
     valid_indices: list[int] = []
     sentences: list[str] = []
-    for index, sentence in enumerate(sentence_values):
-        if isinstance(sentence, str) and sentence.strip():
+    for index, value in enumerate(sentence_values):
+        sentence = _non_empty_sentence(value)
+        if sentence is not None:
             valid_indices.append(index)
             sentences.append(sentence)
 

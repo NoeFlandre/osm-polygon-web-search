@@ -51,17 +51,17 @@ def sentence_rows(
 
     sentence_groups = _segment_page_texts(texts, model)
     expanded: list[dict[str, Any]] = []
-    for index, row in enumerate(page_rows):
-        sentences = sentence_groups[index]
+    for page_index, row in enumerate(page_rows):
+        sentences = sentence_groups[page_index]
         expanded.extend(
             {
                 **row,
                 "sentence": sentence,
-                "sentence_index": index,
+                "sentence_index": sentence_index,
                 "sentence_count": len(sentences),
                 "sentence_model": SAT_MODEL_ID,
             }
-            for index, sentence in enumerate(sentences)
+            for sentence_index, sentence in enumerate(sentences)
         )
     return expanded
 

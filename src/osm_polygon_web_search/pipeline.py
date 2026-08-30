@@ -46,28 +46,34 @@ def _candidate_record(candidate: PolygonCandidate) -> dict[str, Any]:
     }
 
 
-def build_plan(
-    pbf_path: Path,
-    *,
-    keywords: Iterable[str] = DEFAULT_KEYWORDS,
-) -> dict[str, Any]:
+def _build_selection_plan(pbf_path: Path) -> dict[str, Any]:
     candidates = scan_pbf(pbf_path)
     unique = unique_candidates(candidates)
     selected = select_candidate(unique)
     country = country_from_pbf(pbf_path)
-    query = (
-        build_query(selected.name_raw, country, keywords)
-        if selected is not None
-        else None
-    )
     return {
         "pbf": str(pbf_path),
         "country": country,
         "candidate_count": len(candidates),
         "unique_candidate_count": len(unique),
         "selected": _candidate_record(selected) if selected is not None else None,
-        "query": query,
     }
+
+
+def build_plan(
+    pbf_path: Path,
+    *,
+    keywords: Iterable[str] = DEFAULT_KEYWORDS,
+) -> dict[str, Any]:
+    plan = _build_selection_plan(pbf_path)
+    selected = plan["selected"]
+    query = (
+        build_query(selected["name_raw"], plan["country"], keywords)
+        if isinstance(selected, dict)
+        else None
+    )
+    plan["query"] = query
+    return plan
 
 
 def build_variant_plan(
@@ -79,7 +85,7 @@ def build_variant_plan(
     if not variants:
         raise ValueError("at least one query variant is required")
 
-    plan = build_plan(pbf_path, keywords=(variants[0][1],))
+    plan = _build_selection_plan(pbf_path)
     selected = plan["selected"]
     plan["query"] = None
     plan["query_variants"] = (

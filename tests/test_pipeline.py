@@ -93,6 +93,40 @@ def test_build_variant_plan_lists_all_queries_without_the_old_baseline(
     assert all("description" not in item["query"] for item in plan["query_variants"])
 
 
+def test_build_variant_plan_builds_only_the_requested_variant_queries(
+    monkeypatch,
+) -> None:
+    candidate = PolygonCandidate(
+        osm_type="way",
+        osm_id=42,
+        name_raw="Alp X",
+        name_key=normalize_name("Alp X"),
+        tags={"name": "Alp X"},
+        geometry={"type": "Polygon", "coordinates": []},
+    )
+    monkeypatch.setattr(
+        "osm_polygon_web_search.pipeline.scan_pbf",
+        lambda path: [candidate],
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "build_plan",
+        lambda *args, **kwargs: pytest.fail(
+            "variant planning must not build an ordinary query plan"
+        ),
+    )
+
+    plan = pipeline_module.build_variant_plan(
+        Path("liechtenstein-latest.osm.pbf"),
+        variants=(("v1", "land cover"), ("v2", "terrain")),
+    )
+
+    assert [item["keyword"] for item in plan["query_variants"]] == [
+        "land cover",
+        "terrain",
+    ]
+
+
 def test_build_variant_plan_has_no_queries_without_a_selection(monkeypatch) -> None:
     monkeypatch.setattr("osm_polygon_web_search.pipeline.scan_pbf", lambda path: [])
 

@@ -7,6 +7,7 @@ import pytest
 
 from osm_polygon_web_search.llm_relevance import RELEVANCE_MODEL_ID, RelevanceLabel
 from osm_polygon_web_search.relevance_dataset import (
+    _non_empty_sentence,
     classify_rows,
     relevant_rows,
     transform_parquet,
@@ -33,6 +34,23 @@ class ShortClassifier:
 class LongClassifier:
     def classify_many(self, sentences: Sequence[str]) -> list[RelevanceLabel]:
         return ["yes"] * (len(sentences) + 1)
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("A sentence.", "A sentence."),
+        ("  A sentence.  ", "  A sentence.  "),
+        ("  ", None),
+        (None, None),
+        (42, None),
+    ],
+)
+def test_non_empty_sentence_accepts_only_nonblank_strings(
+    value: object,
+    expected: str | None,
+) -> None:
+    assert _non_empty_sentence(value) == expected
 
 
 def test_classify_rows_preserves_context_and_skips_rows_without_sentences() -> None:
