@@ -1,7 +1,7 @@
 import argparse
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from .data_root import ensure_data_path
 from .sentences import (
@@ -11,6 +11,16 @@ from .sentences import (
     load_sat_model,
     split_sentences,
 )
+
+SourceT = TypeVar("SourceT")
+
+
+def _iter_text_inputs(
+    values: Iterable[tuple[SourceT, object]],
+) -> Iterator[tuple[SourceT, str]]:
+    for source, value in values:
+        if isinstance(value, str):
+            yield source, value
 
 
 def _segment_page_texts(
@@ -60,11 +70,10 @@ def sentence_rows(
     """Expand page rows into one Viewer row per non-empty SAT sentence."""
     page_rows: list[Mapping[str, Any]] = []
     texts: list[str] = []
-    for row in rows:
-        text = row.get("text")
-        if isinstance(text, str):
-            page_rows.append(row)
-            texts.append(text)
+    inputs = ((row, row.get("text")) for row in rows)
+    for row, text in _iter_text_inputs(inputs):
+        page_rows.append(row)
+        texts.append(text)
 
     sentence_groups = _segment_page_texts(texts, model)
     expanded: list[dict[str, Any]] = []
@@ -87,10 +96,9 @@ def _source_text_inputs(source: Any) -> tuple[list[int], list[str]]:
     text_values = source["text"].to_pylist() if "text" in source.column_names else []
     source_indices: list[int] = []
     texts: list[str] = []
-    for index, text in enumerate(text_values):
-        if isinstance(text, str):
-            source_indices.append(index)
-            texts.append(text)
+    for index, text in _iter_text_inputs(enumerate(text_values)):
+        source_indices.append(index)
+        texts.append(text)
     return source_indices, texts
 
 

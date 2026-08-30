@@ -6,6 +6,7 @@ import pytest
 
 from osm_polygon_web_search.sentence_dataset import (
     _sentence_table,
+    _source_text_inputs,
     sentence_rows,
     transform_parquet,
 )
@@ -41,6 +42,53 @@ class CountingSegmenter:
     def split(self, text: str) -> list[str]:
         self.calls.append(text)
         return [text]
+
+
+def test_iter_text_inputs_keeps_strings_and_skips_other_values() -> None:
+    from osm_polygon_web_search.sentence_dataset import _iter_text_inputs
+
+    assert list(
+        _iter_text_inputs(
+            [
+                (2, ""),
+                (3, None),
+                (4, 42),
+                (5, "First."),
+            ]
+        )
+    ) == [(2, ""), (5, "First.")]
+
+
+def _observe_text_input_calls(monkeypatch):
+    import osm_polygon_web_search.sentence_dataset as module
+
+    calls = []
+    original = module._iter_text_inputs
+
+    def observe(values):
+        materialized = list(values)
+        calls.append(materialized)
+        return original(materialized)
+
+    monkeypatch.setattr(module, "_iter_text_inputs", observe)
+    return calls
+
+
+def test_sentence_rows_uses_the_shared_text_input_boundary(monkeypatch) -> None:
+    calls = _observe_text_input_calls(monkeypatch)
+    row = {"page_url": "https://example.test/page", "text": "First."}
+
+    sentence_rows([row], FakeSegmenter())
+
+    assert calls == [[(row, "First.")]]
+
+
+def test_source_text_inputs_uses_the_shared_text_input_boundary(monkeypatch) -> None:
+    calls = _observe_text_input_calls(monkeypatch)
+    source = pa.table({"text": pa.array(["First.", None, ""])})
+
+    assert _source_text_inputs(source) == ([0, 2], ["First.", ""])
+    assert calls == [[(0, "First."), (1, None), (2, "")]]
 
 
 def test_sentence_rows_expands_pages_and_retains_page_context() -> None:
