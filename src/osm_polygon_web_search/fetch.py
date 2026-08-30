@@ -3,10 +3,17 @@ from collections.abc import Callable, MutableMapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Protocol
-from urllib.request import Request, urlopen
+from typing import Protocol
+from urllib.request import Request
 
-from .http import HTTPRequestError, HTTPResponse, is_success_status, request_bytes
+from .http import (
+    DEFAULT_HTTP_OPENER,
+    HTTPOpener,
+    HTTPRequestError,
+    HTTPResponse,
+    is_success_status,
+    request_bytes,
+)
 from .text import extract_text
 
 
@@ -89,7 +96,7 @@ class PageFetcher:
     def __init__(
         self,
         *,
-        opener: Callable[..., Any] = urlopen,
+        opener: HTTPOpener = DEFAULT_HTTP_OPENER,
         timeout: float = 20.0,
         max_bytes: int = 2_000_000,
         user_agent: str = "osm-polygon-web-search/0.1 (+https://github.com/NoeFlandre/osm-polygon-web-search)",

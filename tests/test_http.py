@@ -1,14 +1,20 @@
 from email.message import Message
+from typing import cast, get_type_hints
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
 import pytest
 
+from osm_polygon_web_search.fetch import PageFetcher
 from osm_polygon_web_search.http import (
+    HTTPOpener,
     HTTPRequestError,
+    HTTPResponseLike,
+    _read_payload,
     is_success_status,
     request_bytes,
 )
+from osm_polygon_web_search.search import BraveSearchProvider
 
 
 class Response:
@@ -43,6 +49,13 @@ def test_is_success_status_uses_the_http_2xx_range(
     expected: bool,
 ) -> None:
     assert is_success_status(status) is expected
+
+
+def test_external_http_boundaries_have_typed_protocols() -> None:
+    assert get_type_hints(request_bytes)["opener"] is HTTPOpener
+    assert get_type_hints(_read_payload)["response"] is HTTPResponseLike
+    assert get_type_hints(PageFetcher.__init__)["opener"] is HTTPOpener
+    assert get_type_hints(BraveSearchProvider.__init__)["opener"] is HTTPOpener
 
 
 def test_request_bytes_returns_response_data() -> None:
@@ -101,7 +114,10 @@ class StatuslessResponse:
 def test_request_bytes_uses_default_status_and_headers() -> None:
     result = request_bytes(
         Request("https://example.test"),
-        opener=lambda request, timeout: StatuslessResponse(b"ready"),
+        opener=cast(
+            HTTPOpener,
+            lambda request, timeout: StatuslessResponse(b"ready"),
+        ),
         max_retries=0,
         sleep=lambda delay: None,
     )

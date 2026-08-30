@@ -1,7 +1,7 @@
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Protocol, Self, cast
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -20,6 +20,27 @@ class HTTPResponse:
     error: HTTPError | None
 
 
+class HTTPResponseLike(Protocol):
+    @property
+    def status(self) -> int: ...
+
+    @property
+    def headers(self) -> HeaderValues: ...
+
+    def read(self, limit: int = -1) -> bytes: ...
+
+    def __enter__(self) -> Self: ...
+
+    def __exit__(self, *args: object) -> None: ...
+
+
+class HTTPOpener(Protocol):
+    def __call__(self, request: Request, *, timeout: float) -> HTTPResponseLike: ...
+
+
+DEFAULT_HTTP_OPENER: HTTPOpener = cast(HTTPOpener, urlopen)
+
+
 def is_success_status(status: int) -> bool:
     return 200 <= status < 300
 
@@ -27,7 +48,7 @@ def is_success_status(status: int) -> bool:
 def request_bytes(
     request: Request,
     *,
-    opener: Callable[..., Any] = urlopen,
+    opener: HTTPOpener = DEFAULT_HTTP_OPENER,
     timeout: float = 20.0,
     max_retries: int = 2,
     backoff_seconds: float = 1.0,
@@ -63,7 +84,7 @@ def request_bytes(
 def _request_once(
     request: Request,
     *,
-    opener: Callable[..., Any],
+    opener: HTTPOpener,
     timeout: float,
     read_limit: int | None,
 ) -> HTTPResponse:
@@ -92,5 +113,5 @@ def _request_once(
     )
 
 
-def _read_payload(response: Any, read_limit: int | None) -> bytes:
+def _read_payload(response: HTTPResponseLike, read_limit: int | None) -> bytes:
     return response.read(read_limit) if read_limit is not None else response.read()

@@ -3,11 +3,17 @@ import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Protocol
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
-from .http import HTTPRequestError, is_success_status, request_bytes
+from .http import (
+    DEFAULT_HTTP_OPENER,
+    HTTPOpener,
+    HTTPRequestError,
+    is_success_status,
+    request_bytes,
+)
 
 
 class SearchProviderError(RuntimeError):
@@ -39,7 +45,7 @@ class BraveSearchProvider:
         self,
         *,
         api_key: str | None = None,
-        opener: Callable[..., Any] = urlopen,
+        opener: HTTPOpener = DEFAULT_HTTP_OPENER,
         base_url: str = "https://api.search.brave.com/res/v1/web/search",
         timeout: float = 20.0,
         max_retries: int = 2,
