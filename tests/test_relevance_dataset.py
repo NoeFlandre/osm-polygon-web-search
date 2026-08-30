@@ -36,6 +36,21 @@ class LongClassifier:
         return ["yes"] * (len(sentences) + 1)
 
 
+def _observe_sentence_input_calls(monkeypatch):
+    import osm_polygon_web_search.relevance_dataset as module
+
+    calls = []
+    original = module._iter_sentence_inputs
+
+    def observe(values):
+        materialized = list(values)
+        calls.append(materialized)
+        return original(materialized)
+
+    monkeypatch.setattr(module, "_iter_sentence_inputs", observe)
+    return calls
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
@@ -51,6 +66,67 @@ def test_non_empty_sentence_accepts_only_nonblank_strings(
     expected: str | None,
 ) -> None:
     assert _non_empty_sentence(value) == expected
+
+
+def test_iter_sentence_inputs_keeps_sources_and_skips_blank_values() -> None:
+    from osm_polygon_web_search.relevance_dataset import _iter_sentence_inputs
+
+    assert list(
+        _iter_sentence_inputs(
+            [
+                (4, "A sentence."),
+                (5, "  "),
+                (6, None),
+                (7, "  Another sentence.  "),
+            ]
+        )
+    ) == [
+        (4, "A sentence."),
+        (7, "  Another sentence.  "),
+    ]
+
+
+def test_classify_rows_uses_the_shared_sentence_input_boundary(monkeypatch) -> None:
+    calls = _observe_sentence_input_calls(monkeypatch)
+    classifier = FakeClassifier({"A sentence.": "yes"})
+
+    assert (
+        classify_rows([{"id": 1, "sentence": "A sentence."}], classifier)[0][
+            "relevance_label"
+        ]
+        == "yes"
+    )
+    assert calls == [
+        [
+            (
+                {"id": 1, "sentence": "A sentence."},
+                "A sentence.",
+            )
+        ]
+    ]
+
+
+def test_transform_parquet_uses_the_shared_sentence_input_boundary(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    input_path = tmp_path / "input.parquet"
+    classified_path = tmp_path / "classified.parquet"
+    relevant_path = tmp_path / "relevant.parquet"
+    pq.write_table(
+        pa.table({"sentence": pa.array(["A sentence."])}),
+        input_path,
+    )
+
+    calls = _observe_sentence_input_calls(monkeypatch)
+    transform_parquet(
+        input_path,
+        classified_path,
+        relevant_path,
+        FakeClassifier({"A sentence.": "yes"}),
+    )
+
+    assert calls == [[(0, "A sentence.")]]
 
 
 def test_classify_rows_preserves_context_and_skips_rows_without_sentences() -> None:

@@ -1,7 +1,7 @@
 import argparse
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from .data_root import ensure_data_path
 from .llm_relevance import (
@@ -12,12 +12,22 @@ from .llm_relevance import (
 from .relevance_model import load_lfm_classifier
 
 CLASSIFICATION_BATCH_SIZE = 16
+SourceT = TypeVar("SourceT")
 
 
 def _non_empty_sentence(value: object) -> str | None:
     if isinstance(value, str) and value.strip():
         return value
     return None
+
+
+def _iter_sentence_inputs(
+    values: Iterable[tuple[SourceT, object]],
+) -> Iterator[tuple[SourceT, str]]:
+    for source, value in values:
+        sentence = _non_empty_sentence(value)
+        if sentence is not None:
+            yield source, sentence
 
 
 def _classify_sentences(
@@ -41,10 +51,8 @@ def classify_rows(
     """Add one strict local relevance label to every non-empty sentence row."""
     sentence_rows: list[dict[str, Any]] = []
     sentences: list[str] = []
-    for row in rows:
-        sentence = _non_empty_sentence(row.get("sentence"))
-        if sentence is None:
-            continue
+    inputs = ((row, row.get("sentence")) for row in rows)
+    for row, sentence in _iter_sentence_inputs(inputs):
         sentence_rows.append(dict(row))
         sentences.append(sentence)
 
@@ -80,11 +88,9 @@ def transform_parquet(
     )
     valid_indices: list[int] = []
     sentences: list[str] = []
-    for index, value in enumerate(sentence_values):
-        sentence = _non_empty_sentence(value)
-        if sentence is not None:
-            valid_indices.append(index)
-            sentences.append(sentence)
+    for index, sentence in _iter_sentence_inputs(enumerate(sentence_values)):
+        valid_indices.append(index)
+        sentences.append(sentence)
 
     selected = source.take(pa.array(valid_indices, type=pa.int64()))
     labels = _classify_sentences(sentences, classifier)
