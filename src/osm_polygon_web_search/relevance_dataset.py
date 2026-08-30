@@ -1,15 +1,22 @@
+from __future__ import annotations
+
 import argparse
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from .data_root import ensure_data_path
+from .dataset_schema import DatasetRecord, DatasetRow, RelevanceMetadata
 from .llm_relevance import (
     RELEVANCE_MODEL_ID,
     RelevanceClassifier,
     RelevanceLabel,
 )
 from .relevance_model import load_lfm_classifier
+
+if TYPE_CHECKING:
+    import pyarrow as pa
+
 
 CLASSIFICATION_BATCH_SIZE = 16
 SourceT = TypeVar("SourceT")
@@ -55,30 +62,43 @@ def _classify_sentences(
     return labels
 
 
+def _relevance_metadata(label: RelevanceLabel) -> RelevanceMetadata:
+    return {
+        "relevance_label": label,
+        "relevance_model": RELEVANCE_MODEL_ID,
+    }
+
+
 def classify_rows(
-    rows: Iterable[Mapping[str, Any]],
+    rows: Iterable[DatasetRow],
     classifier: RelevanceClassifier,
-) -> list[dict[str, Any]]:
+) -> list[DatasetRecord]:
     """Add one strict local relevance label to every non-empty sentence row."""
     source_rows, sentences = _collect_sentence_inputs(
         (row, row.get("sentence")) for row in rows
     )
-    sentence_rows = [dict(row) for row in source_rows]
+    sentence_rows: list[DatasetRecord] = [dict(row) for row in source_rows]
 
     labels = _classify_sentences(sentences, classifier)
     return [
         {
             **sentence_rows[index],
-            "relevance_label": labels[index],
-            "relevance_model": RELEVANCE_MODEL_ID,
+            **_relevance_metadata(labels[index]),
         }
         for index in range(len(sentence_rows))
     ]
 
 
-def relevant_rows(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+def relevant_rows(rows: Iterable[DatasetRow]) -> list[DatasetRecord]:
     """Keep only rows whose validated model label is yes."""
     return [dict(row) for row in rows if row.get("relevance_label") == "yes"]
+
+
+def _source_sentence_inputs(source: pa.Table) -> tuple[list[int], list[str]]:
+    sentence_values = (
+        source["sentence"].to_pylist() if "sentence" in source.column_names else []
+    )
+    return _collect_sentence_inputs(enumerate(sentence_values))
 
 
 def transform_parquet(
@@ -92,10 +112,7 @@ def transform_parquet(
     import pyarrow.parquet as pq
 
     source = pq.read_table(input_path)
-    sentence_values = (
-        source["sentence"].to_pylist() if "sentence" in source.column_names else []
-    )
-    valid_indices, sentences = _collect_sentence_inputs(enumerate(sentence_values))
+    valid_indices, sentences = _source_sentence_inputs(source)
 
     selected = source.take(pa.array(valid_indices, type=pa.int64()))
     labels = _classify_sentences(sentences, classifier)

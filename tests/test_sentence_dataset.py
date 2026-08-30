@@ -101,6 +101,17 @@ def test_source_text_inputs_exposes_named_fields() -> None:
     assert inputs == ([0, 2], ["First.", ""])
 
 
+def test_sentence_metadata_has_the_persisted_field_contract() -> None:
+    from osm_polygon_web_search.sentence_dataset import _sentence_metadata
+
+    assert _sentence_metadata("First.", 0, 2) == {
+        "sentence": "First.",
+        "sentence_index": 0,
+        "sentence_count": 2,
+        "sentence_model": SAT_MODEL_ID,
+    }
+
+
 def test_sentence_rows_expands_pages_and_retains_page_context() -> None:
     pages = [
         {

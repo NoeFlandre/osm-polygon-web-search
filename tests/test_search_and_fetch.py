@@ -70,6 +70,7 @@ def test_brave_provider_maps_web_results() -> None:
     provider = BraveSearchProvider(
         api_key="secret",
         opener=lambda request, timeout: response,
+        sleep=lambda _delay: None,
     )
 
     assert provider.search('"Alp X" "Liechtenstein" geology') == [
@@ -176,7 +177,8 @@ def test_brave_provider_fails_without_an_api_key(monkeypatch) -> None:
 def test_brave_provider_reads_the_api_key_from_the_environment(monkeypatch) -> None:
     monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "environment-secret")
     provider = BraveSearchProvider(
-        opener=lambda request, timeout: FakeResponse(b'{"web": {"results": []}}')
+        opener=lambda request, timeout: FakeResponse(b'{"web": {"results": []}}'),
+        sleep=lambda _delay: None,
     )
 
     assert provider.api_key == "environment-secret"
@@ -214,7 +216,10 @@ def test_brave_provider_retries_rate_limited_searches() -> None:
 
 def test_page_fetcher_extracts_text_with_trafilatura() -> None:
     html = b"<html><body><article><p>Alp X has limestone.</p></article></body></html>"
-    fetcher = PageFetcher(opener=lambda request, timeout: FakeResponse(html))
+    fetcher = PageFetcher(
+        opener=lambda request, timeout: FakeResponse(html),
+        sleep=lambda _delay: None,
+    )
 
     page = fetcher.fetch("https://example.test/alp-x")
 
@@ -325,7 +330,8 @@ def test_page_fetcher_preserves_the_transport_error_cause(monkeypatch) -> None:
 def test_page_fetcher_rejects_http_300_response() -> None:
     with pytest.raises(PageFetchError, match="HTTP 300"):
         PageFetcher(
-            opener=lambda request, timeout: FakeResponse(b"", status=300)
+            opener=lambda request, timeout: FakeResponse(b"", status=300),
+            sleep=lambda _delay: None,
         ).fetch("https://example.test/redirect")
 
 
@@ -333,6 +339,7 @@ def test_page_fetcher_accepts_a_payload_at_the_byte_limit() -> None:
     page = PageFetcher(
         opener=lambda request, timeout: FakeResponse(b"1234"),
         max_bytes=4,
+        sleep=lambda _delay: None,
     ).fetch("https://example.test/exact")
 
     assert page.html == "1234"
@@ -407,7 +414,9 @@ def test_page_fetcher_rejects_nonretryable_http_errors() -> None:
         raise HTTPError(request.full_url, 404, "not found", response_headers(), None)
 
     with pytest.raises(PageFetchError, match="page request failed"):
-        PageFetcher(opener=opener).fetch("https://example.test/missing")
+        PageFetcher(opener=opener, sleep=lambda _delay: None).fetch(
+            "https://example.test/missing"
+        )
 
 
 def test_page_fetcher_rejects_transport_errors() -> None:
@@ -415,13 +424,16 @@ def test_page_fetcher_rejects_transport_errors() -> None:
         raise URLError("offline")
 
     with pytest.raises(PageFetchError, match="page request failed"):
-        PageFetcher(opener=opener).fetch("https://example.test/offline")
+        PageFetcher(opener=opener, sleep=lambda _delay: None).fetch(
+            "https://example.test/offline"
+        )
 
 
 def test_page_fetcher_rejects_non_success_response_status() -> None:
     with pytest.raises(PageFetchError, match="HTTP 500"):
         PageFetcher(
-            opener=lambda request, timeout: FakeResponse(b"", status=500)
+            opener=lambda request, timeout: FakeResponse(b"", status=500),
+            sleep=lambda _delay: None,
         ).fetch("https://example.test/error")
 
 
@@ -430,6 +442,7 @@ def test_page_fetcher_rejects_oversized_pages() -> None:
         PageFetcher(
             opener=lambda request, timeout: FakeResponse(b"12345"),
             max_bytes=4,
+            sleep=lambda _delay: None,
         ).fetch("https://example.test/large")
 
 
@@ -619,6 +632,7 @@ def test_brave_provider_rejects_bad_json_and_http_errors() -> None:
     invalid = BraveSearchProvider(
         api_key="secret",
         opener=lambda request, timeout: FakeResponse(b"not-json"),
+        sleep=lambda _delay: None,
     )
     with pytest.raises(SearchProviderError, match="invalid JSON"):
         invalid.search("test")
@@ -627,7 +641,11 @@ def test_brave_provider_rejects_bad_json_and_http_errors() -> None:
         raise HTTPError(request.full_url, 404, "not found", response_headers(), None)
 
     with pytest.raises(SearchProviderError, match="request failed"):
-        BraveSearchProvider(api_key="secret", opener=http_error).search("test")
+        BraveSearchProvider(
+            api_key="secret",
+            opener=http_error,
+            sleep=lambda _delay: None,
+        ).search("test")
 
 
 def test_brave_provider_reports_the_transport_error_cause(monkeypatch) -> None:
@@ -648,12 +666,17 @@ def test_brave_provider_rejects_transport_and_response_errors() -> None:
         raise URLError("offline")
 
     with pytest.raises(SearchProviderError, match="request failed"):
-        BraveSearchProvider(api_key="secret", opener=offline).search("test")
+        BraveSearchProvider(
+            api_key="secret",
+            opener=offline,
+            sleep=lambda _delay: None,
+        ).search("test")
 
     with pytest.raises(SearchProviderError, match="HTTP 500"):
         BraveSearchProvider(
             api_key="secret",
             opener=lambda request, timeout: FakeResponse(b"{}", status=500),
+            sleep=lambda _delay: None,
         ).search("test")
 
 
@@ -662,6 +685,7 @@ def test_brave_provider_rejects_http_300_response() -> None:
         BraveSearchProvider(
             api_key="secret",
             opener=lambda request, timeout: FakeResponse(b"{}", status=300),
+            sleep=lambda _delay: None,
         ).search("test")
 
 
@@ -707,6 +731,7 @@ def test_brave_provider_handles_missing_result_fields() -> None:
     results = BraveSearchProvider(
         api_key="secret",
         opener=lambda request, timeout: response,
+        sleep=lambda _delay: None,
     ).search("test")
 
     assert results == [
@@ -723,6 +748,7 @@ def test_brave_provider_handles_missing_web_results() -> None:
     provider = BraveSearchProvider(
         api_key="secret",
         opener=lambda request, timeout: FakeResponse(b'{"web": {}}'),
+        sleep=lambda _delay: None,
     )
 
     assert provider.search("test") == []
@@ -732,6 +758,7 @@ def test_brave_provider_handles_a_missing_web_object() -> None:
     provider = BraveSearchProvider(
         api_key="secret",
         opener=lambda request, timeout: FakeResponse(b"{}"),
+        sleep=lambda _delay: None,
     )
 
     assert provider.search("test") == []
@@ -741,6 +768,7 @@ def test_brave_provider_reports_invalid_json_exactly() -> None:
     provider = BraveSearchProvider(
         api_key="secret",
         opener=lambda request, timeout: FakeResponse(b"not-json"),
+        sleep=lambda _delay: None,
     )
 
     with pytest.raises(SearchProviderError) as error:

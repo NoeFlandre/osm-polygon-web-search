@@ -121,6 +121,23 @@ def test_classify_rows_uses_the_shared_sentence_input_boundary(monkeypatch) -> N
     ]
 
 
+def test_relevance_metadata_has_the_persisted_field_contract() -> None:
+    from osm_polygon_web_search.relevance_dataset import _relevance_metadata
+
+    assert _relevance_metadata("yes") == {
+        "relevance_label": "yes",
+        "relevance_model": RELEVANCE_MODEL_ID,
+    }
+
+
+def test_source_sentence_inputs_returns_valid_rows_in_source_order() -> None:
+    from osm_polygon_web_search.relevance_dataset import _source_sentence_inputs
+
+    source = pa.table({"sentence": pa.array(["First.", None, "  ", "Last."])})
+
+    assert _source_sentence_inputs(source) == ([0, 3], ["First.", "Last."])
+
+
 def test_transform_parquet_uses_the_shared_sentence_input_boundary(
     monkeypatch,
     tmp_path: Path,

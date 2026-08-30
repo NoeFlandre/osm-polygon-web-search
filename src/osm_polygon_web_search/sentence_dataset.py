@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import argparse
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
-from typing import Any, NamedTuple, TypeVar
+from typing import TYPE_CHECKING, NamedTuple, TypeVar
 
 from .data_root import ensure_data_path
+from .dataset_schema import DatasetRecord, DatasetRow, SentenceMetadata
 from .sentences import (
     SAT_MODEL_ID,
     SentenceModel,
@@ -11,6 +14,9 @@ from .sentences import (
     load_sat_model,
     split_sentences,
 )
+
+if TYPE_CHECKING:
+    import pyarrow as pa
 
 SourceT = TypeVar("SourceT")
 
@@ -75,12 +81,25 @@ def _expand_sentence_groups(
     )
 
 
+def _sentence_metadata(
+    sentence: str,
+    sentence_index: int,
+    sentence_count: int,
+) -> SentenceMetadata:
+    return {
+        "sentence": sentence,
+        "sentence_index": sentence_index,
+        "sentence_count": sentence_count,
+        "sentence_model": SAT_MODEL_ID,
+    }
+
+
 def sentence_rows(
-    rows: Iterable[Mapping[str, Any]],
+    rows: Iterable[DatasetRow],
     model: SentenceModel,
-) -> list[dict[str, Any]]:
+) -> list[DatasetRecord]:
     """Expand page rows into one Viewer row per non-empty SAT sentence."""
-    page_rows: list[Mapping[str, Any]] = []
+    page_rows: list[DatasetRow] = []
     texts: list[str] = []
     inputs = ((row, row.get("text")) for row in rows)
     for row, text in _iter_text_inputs(inputs):
@@ -88,16 +107,13 @@ def sentence_rows(
         texts.append(text)
 
     sentence_groups = _segment_page_texts(texts, model)
-    expanded: list[dict[str, Any]] = []
+    expanded: list[DatasetRecord] = []
     for page_index, row in enumerate(page_rows):
         sentences = sentence_groups[page_index]
         expanded.extend(
             {
                 **row,
-                "sentence": sentence,
-                "sentence_index": sentence_index,
-                "sentence_count": len(sentences),
-                "sentence_model": SAT_MODEL_ID,
+                **_sentence_metadata(sentence, sentence_index, len(sentences)),
             }
             for sentence_index, sentence in enumerate(sentences)
         )
@@ -109,7 +125,7 @@ class _SourceTextInputs(NamedTuple):
     texts: list[str]
 
 
-def _source_text_inputs(source: Any) -> _SourceTextInputs:
+def _source_text_inputs(source: pa.Table) -> _SourceTextInputs:
     text_values = source["text"].to_pylist() if "text" in source.column_names else []
     source_indices: list[int] = []
     texts: list[str] = []
@@ -119,7 +135,7 @@ def _source_text_inputs(source: Any) -> _SourceTextInputs:
     return _SourceTextInputs(source_indices, texts)
 
 
-def _sentence_table(source: Any, model: SentenceModel) -> Any:
+def _sentence_table(source: pa.Table, model: SentenceModel) -> pa.Table:
     import pyarrow as pa
 
     inputs = _source_text_inputs(source)
