@@ -1,7 +1,7 @@
 import argparse
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 from .data_root import ensure_data_path
 from .sentences import (
@@ -46,10 +46,17 @@ def _segment_page_texts(
     return [groups_by_text[text] for text in texts]
 
 
+class _SentenceExpansion(NamedTuple):
+    repeated_indices: list[int]
+    sentence_values: list[str]
+    sentence_indices: list[int]
+    sentence_counts: list[int]
+
+
 def _expand_sentence_groups(
     source_indices: Sequence[int],
     sentence_groups: Sequence[Sequence[str]],
-) -> tuple[list[int], list[str], list[int], list[int]]:
+) -> _SentenceExpansion:
     repeated_indices: list[int] = []
     sentence_values: list[str] = []
     sentence_indices: list[int] = []
@@ -60,7 +67,12 @@ def _expand_sentence_groups(
         sentence_values.extend(sentences)
         sentence_indices.extend(range(count))
         sentence_counts.extend([count] * count)
-    return repeated_indices, sentence_values, sentence_indices, sentence_counts
+    return _SentenceExpansion(
+        repeated_indices,
+        sentence_values,
+        sentence_indices,
+        sentence_counts,
+    )
 
 
 def sentence_rows(
@@ -107,30 +119,28 @@ def _sentence_table(source: Any, model: SentenceModel) -> Any:
 
     source_indices, texts = _source_text_inputs(source)
     sentence_groups = _segment_page_texts(texts, model)
-    (
-        repeated_indices,
-        sentence_values,
-        sentence_indices,
-        sentence_counts,
-    ) = _expand_sentence_groups(source_indices, sentence_groups)
+    expansion = _expand_sentence_groups(source_indices, sentence_groups)
 
-    selected = source.take(pa.array(repeated_indices, type=pa.int64()))
+    selected = source.take(pa.array(expansion.repeated_indices, type=pa.int64()))
     return (
         selected.append_column(
             "sentence",
-            pa.array(sentence_values, type=pa.string()),
+            pa.array(expansion.sentence_values, type=pa.string()),
         )
         .append_column(
             "sentence_index",
-            pa.array(sentence_indices, type=pa.int64()),
+            pa.array(expansion.sentence_indices, type=pa.int64()),
         )
         .append_column(
             "sentence_count",
-            pa.array(sentence_counts, type=pa.int64()),
+            pa.array(expansion.sentence_counts, type=pa.int64()),
         )
         .append_column(
             "sentence_model",
-            pa.array([SAT_MODEL_ID] * len(sentence_values), type=pa.string()),
+            pa.array(
+                [SAT_MODEL_ID] * len(expansion.sentence_values),
+                type=pa.string(),
+            ),
         )
     )
 

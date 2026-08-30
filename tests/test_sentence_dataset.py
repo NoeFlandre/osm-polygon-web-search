@@ -214,6 +214,20 @@ def test_expand_sentence_groups_preserves_arrow_row_order_and_metadata() -> None
     )
 
 
+def test_expand_sentence_groups_exposes_named_fields() -> None:
+    from osm_polygon_web_search.sentence_dataset import _expand_sentence_groups
+
+    expansion = _expand_sentence_groups(
+        [4, 9],
+        [["First.", "Second!"], ["Third?"]],
+    )
+
+    assert expansion.repeated_indices == [4, 4, 9]
+    assert expansion.sentence_values == ["First.", "Second!", "Third?"]
+    assert expansion.sentence_indices == [0, 1, 0]
+    assert expansion.sentence_counts == [2, 2, 1]
+
+
 def test_source_text_inputs_keeps_string_rows_in_source_order() -> None:
     from osm_polygon_web_search.sentence_dataset import _source_text_inputs
 
