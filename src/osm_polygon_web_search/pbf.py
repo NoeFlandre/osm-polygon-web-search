@@ -2,7 +2,7 @@ import json
 import math
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Protocol, cast
 
 import osmium
 import osmium.filter
@@ -13,6 +13,38 @@ from .candidates import PolygonCandidate
 from .names import normalize_name
 
 Coordinate = tuple[float, float]
+
+
+class _CoordinateNode(Protocol):
+    @property
+    def lon(self) -> float: ...
+
+    @property
+    def lat(self) -> float: ...
+
+
+class _WayObject(Protocol):
+    @property
+    def id(self) -> int: ...
+
+    @property
+    def tags(self) -> Mapping[str, str]: ...
+
+    @property
+    def nodes(self) -> Iterable[_CoordinateNode]: ...
+
+
+class _AreaObject(Protocol):
+    @property
+    def tags(self) -> Mapping[str, str]: ...
+
+    def from_way(self) -> bool: ...
+
+    def orig_id(self) -> int: ...
+
+
+class _GeometryFactory(Protocol):
+    def create_multipolygon(self, obj: _AreaObject, /) -> str: ...
 
 
 def way_geometry(
@@ -60,7 +92,7 @@ def _candidate(
     )
 
 
-def _way_candidate(obj: Any) -> PolygonCandidate | None:
+def _way_candidate(obj: _WayObject) -> PolygonCandidate | None:
     name_key = normalize_name(obj.tags.get("name", ""))
     if not name_key:
         return None
@@ -75,7 +107,10 @@ def _way_candidate(obj: Any) -> PolygonCandidate | None:
     )
 
 
-def _relation_geometry(factory: Any, obj: Any) -> dict[str, object] | None:
+def _relation_geometry(
+    factory: _GeometryFactory,
+    obj: _AreaObject,
+) -> dict[str, object] | None:
     try:
         geometry = json.loads(factory.create_multipolygon(obj))
     except (TypeError, ValueError, RuntimeError):
@@ -85,7 +120,10 @@ def _relation_geometry(factory: Any, obj: Any) -> dict[str, object] | None:
     return geometry
 
 
-def _relation_candidate(obj: Any, factory: Any) -> PolygonCandidate | None:
+def _relation_candidate(
+    obj: _AreaObject,
+    factory: _GeometryFactory,
+) -> PolygonCandidate | None:
     if obj.from_way():
         return None
     tags = dict(obj.tags)
@@ -100,17 +138,20 @@ def _relation_candidate(obj: Any, factory: Any) -> PolygonCandidate | None:
     return _candidate("relation", obj.orig_id(), tags, geometry, name_key=name_key)
 
 
-def _object_candidate(obj: Any, factory: Any) -> PolygonCandidate | None:
+def _object_candidate(
+    obj: object,
+    factory: _GeometryFactory,
+) -> PolygonCandidate | None:
     if isinstance(obj, osmium.osm.Way):
-        return _way_candidate(obj)
+        return _way_candidate(cast(_WayObject, obj))
     if isinstance(obj, osmium.osm.Area):
-        return _relation_candidate(obj, factory)
+        return _relation_candidate(cast(_AreaObject, obj), factory)
     return None
 
 
 def scan_pbf(path: Path) -> list[PolygonCandidate]:
     """Return named closed ways and assembled named area relations from a PBF."""
-    factory = osmium.geom.GeoJSONFactory()
+    factory = cast(_GeometryFactory, osmium.geom.GeoJSONFactory())
     candidates: list[PolygonCandidate] = []
     processor = (
         osmium.FileProcessor(

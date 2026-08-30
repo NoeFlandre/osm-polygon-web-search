@@ -1,10 +1,26 @@
 import json
 from types import SimpleNamespace
+from typing import get_type_hints
 
 import osmium.filter
 import pytest
 
 from osm_polygon_web_search.pbf import is_area_relation, way_geometry
+
+
+def test_osmium_helpers_have_structural_boundary_types() -> None:
+    from osm_polygon_web_search import pbf
+
+    assert get_type_hints(pbf._way_candidate)["obj"] is pbf._WayObject
+    relation_geometry_hints = get_type_hints(pbf._relation_geometry)
+    assert relation_geometry_hints["factory"] is pbf._GeometryFactory
+    assert relation_geometry_hints["obj"] is pbf._AreaObject
+    relation_candidate_hints = get_type_hints(pbf._relation_candidate)
+    assert relation_candidate_hints["obj"] is pbf._AreaObject
+    assert relation_candidate_hints["factory"] is pbf._GeometryFactory
+    object_candidate_hints = get_type_hints(pbf._object_candidate)
+    assert object_candidate_hints["obj"] is object
+    assert object_candidate_hints["factory"] is pbf._GeometryFactory
 
 
 def test_closed_way_becomes_a_polygon() -> None:
@@ -119,7 +135,8 @@ class FakeProcessor:
 
 
 class FakeFactory:
-    def create_multipolygon(self, obj: FakeObject) -> str:
+    def create_multipolygon(self, obj: object) -> str:
+        assert isinstance(obj, FakeObject)
         if obj._geometry == "raise":
             raise RuntimeError("broken relation")
         return obj._geometry
@@ -214,7 +231,7 @@ def test_unnamed_area_relation_is_rejected_before_geometry(monkeypatch) -> None:
                 object_id=1,
                 tags={"type": "multipolygon"},
             ),
-            object(),
+            FakeFactory(),
         )
         is None
     )
@@ -249,6 +266,7 @@ def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> 
     from osm_polygon_web_search import pbf
 
     ring = [(7.0, 47.0), (7.1, 47.0), (7.1, 47.1), (7.0, 47.0)]
+    cast_types: list[object] = []
     path_seen = []
     entities_seen = []
     processors = []
@@ -305,7 +323,12 @@ def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> 
         processors.append(processor)
         return processor
 
+    def recording_cast(type_: object, value: object) -> object:
+        cast_types.append(type_)
+        return value
+
     monkeypatch.setattr(pbf.osmium, "FileProcessor", file_processor)
+    monkeypatch.setattr(pbf, "cast", recording_cast)
     monkeypatch.setattr(
         osmium.filter,
         "EntityFilter",
@@ -338,6 +361,11 @@ def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> 
         ("way", 1),
         ("relation", 9),
     ]
+    assert set(cast_types) == {
+        pbf._AreaObject,
+        pbf._GeometryFactory,
+        pbf._WayObject,
+    }
     assert candidates[0].name_raw == "Closed"
     assert candidates[0].name_key == "closed"
     assert candidates[0].tags == {"name": "Closed"}
