@@ -36,7 +36,10 @@ The table includes these main fields:
 
 The extracted evidence and criteria fields are intentionally omitted. The full
 parsed `text` remains available for inspection, while `sentence` is the
-primary downstream text unit.
+primary downstream text unit. Before SAT segmentation, obvious Trafilatura
+scaffolding is removed from the segmentation input: headings, menu and call-to-
+action fragments, metadata, identifiers, symbols, and very short fragments.
+The raw parsed `text` column is retained unchanged for provenance and review.
 
 The source PBF and local working artifacts remain local. The uploaded table
 contains only the PBF basename in `source_pbf`, not a local filesystem path, and

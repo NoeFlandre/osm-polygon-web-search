@@ -167,6 +167,33 @@ def test_sentence_rows_uses_batch_segmentation_when_available() -> None:
     assert [row["sentence_count"] for row in rows] == [1, 1]
 
 
+def test_sentence_rows_cleans_sat_input_but_retains_raw_page_text() -> None:
+    raw_text = "Overview\n-\nStausee Steg is an artificial lake."
+    model = FakeBatchedSegmenter([["Stausee Steg is an artificial lake."]])
+
+    rows = sentence_rows(
+        [
+            {
+                "page_url": "https://example.test/page",
+                "text": raw_text,
+            }
+        ],
+        model,
+    )
+
+    assert model.inputs == [["Stausee Steg is an artificial lake."]]
+    assert rows == [
+        {
+            "page_url": "https://example.test/page",
+            "text": raw_text,
+            "sentence": "Stausee Steg is an artificial lake.",
+            "sentence_index": 0,
+            "sentence_count": 1,
+            "sentence_model": SAT_MODEL_ID,
+        }
+    ]
+
+
 def test_sentence_rows_segments_duplicate_text_once() -> None:
     pages = [
         {"page_url": "https://example.test/one", "text": "One."},

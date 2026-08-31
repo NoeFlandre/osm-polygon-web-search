@@ -51,9 +51,11 @@ To create a sentence-level Viewer table from the approved POC parquet, run:
       --input "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc-20260827-stausee-steg-no-landuse/hf-viewer/train.parquet" \
       --output "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/poc-20260828-sat-3l-sm/hf-viewer/train.parquet"
 
-The command loads `segment-any-text/sat-3l-sm` once, keeps the original page
-text in `text`, and emits one row per non-empty sentence with
-`sentence_index`, `sentence_count`, and `sentence_model`.
+The command removes obvious extraction scaffolding before SAT (headings, menus,
+metadata, identifiers, symbols, and very short fragments). It loads
+`segment-any-text/sat-3l-sm` once, keeps the original page text in `text`, and
+emits one row per non-empty sentence with `sentence_index`, `sentence_count`,
+and `sentence_model`.
 
 To classify the existing sentence table locally and create both the complete
 yes/no artifact and the relevant-only Viewer artifact, run:

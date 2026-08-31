@@ -66,13 +66,16 @@ those baseline evidence fields.
 
 ### Sentence-level output
 
-The approved Viewer transformation loads `segment-any-text/sat-3l-sm` through
-`wtpsplit` once and segments each distinct non-empty Trafilatura page text
-through its bounded batch interface. The first-seen results are restored to
-every original page/query row, so duplicate contexts remain visible without
-repeating deterministic model work. A scalar compatibility interface remains
-available for injected models. Each sentence becomes one output row. The
-original full page text remains in `text` for provenance; `sentence`,
+The approved Viewer transformation first removes obvious Trafilatura extraction
+scaffolding from each page: headings, menus, metadata, identifiers, symbols,
+and very short fragments. This cleaned text is used only as SAT input; the
+original full page text remains in `text` for provenance. It then loads
+`segment-any-text/sat-3l-sm` through `wtpsplit` once and segments each distinct
+non-empty cleaned text through its bounded batch interface. The first-seen
+results are restored to every original page/query row, so duplicate contexts
+remain visible without repeating deterministic model work. A scalar
+compatibility interface remains available for injected models. Each sentence
+becomes one output row. `sentence`,
 `sentence_index`, `sentence_count`, and `sentence_model` expose the model output
 and its position. Empty extracted text produces no sentence row. Parquet
 expansion uses Arrow row selection and typed appended columns rather than

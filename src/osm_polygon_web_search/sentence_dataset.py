@@ -12,6 +12,7 @@ from .sentences import (
     SentenceModel,
     _clean_segments,
     load_sat_model,
+    prepare_for_segmentation,
     split_sentences,
 )
 
@@ -36,11 +37,13 @@ def _segment_page_texts(
     if not texts:
         return []
 
+    prepared_texts = [prepare_for_segmentation(text) for text in texts]
+
     split_many = getattr(model, "split_many", None)
     if not callable(split_many):
-        return [split_sentences(text, model) for text in texts]
+        return [split_sentences(text, model) for text in prepared_texts]
 
-    unique_texts = list(dict.fromkeys(texts))
+    unique_texts = list(dict.fromkeys(prepared_texts))
     grouped = list(split_many(unique_texts))
     if len(grouped) != len(unique_texts):
         raise ValueError("batched sentence model must return one result per text")
@@ -49,7 +52,7 @@ def _segment_page_texts(
     groups_by_text = {
         text: unique_groups[index] for index, text in enumerate(unique_texts)
     }
-    return [groups_by_text[text] for text in texts]
+    return [groups_by_text[text] for text in prepared_texts]
 
 
 class _SentenceExpansion(NamedTuple):

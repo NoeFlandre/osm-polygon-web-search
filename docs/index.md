@@ -15,8 +15,8 @@ The approved first pipeline is deliberately small:
 - uses a Brave Search API adapter for opt-in live queries;
 - retrieves up to five result pages per variant by default (`--results` accepts
   1–20; `--all-variants` runs V1–V9);
-- extracts page text with Trafilatura and expands it into sentence-level rows
-  with `segment-any-text/sat-3l-sm`;
+- extracts page text with Trafilatura, removes obvious extraction scaffolding,
+  and expands it into sentence-level rows with `segment-any-text/sat-3l-sm`;
 - classifies every sentence locally with `LiquidAI/LFM2.5-2.6B` using the
   approved strict yes/no prompt;
 - all local and derived data stays on the Seagate volume;
