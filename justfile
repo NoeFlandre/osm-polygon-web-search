@@ -7,7 +7,7 @@ lint:
     uv run ruff check .
 
 type:
-    uv run ty check
+    uv run ty check --extra-search-path src
 
 test:
     uv run pytest -q --cov=osm_polygon_web_search --cov-report=term-missing

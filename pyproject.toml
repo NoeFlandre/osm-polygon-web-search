@@ -78,6 +78,8 @@ only_mutate = [
   "src/osm_polygon_web_search/data_root.py",
   "src/osm_polygon_web_search/dataset_schema.py",
   "src/osm_polygon_web_search/fetch.py",
+  "src/osm_polygon_web_search/grid5000.py",
+  "src/osm_polygon_web_search/grid5000_worker.py",
   "src/osm_polygon_web_search/queries.py",
   "src/osm_polygon_web_search/pbf.py",
   "src/osm_polygon_web_search/pipeline.py",
@@ -95,6 +97,3 @@ only_mutate = [
 pytest_add_cli_args = ["-q"]
 pytest_add_cli_args_test_selection = ["--ignore=tests/test_repository_contracts.py"]
 on_dependency_change = "rerun"
-do_not_mutate_patterns = [
-  "ensure_ascii=False",
-]

@@ -41,6 +41,21 @@ provider responses are not published.
     ! uv run mutmut results | rg -q .
     docker build -t osm-polygon-web-search:local .
 
+For the bounded remote GPU pass, use the Grid'5000 runner after the repository
+commit is pushed and the Seagate sentence table is ready:
+
+    uv run python scripts/run_grid5000_relevance.py \
+      --input "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/<run>/segmented/train.parquet" \
+      --classified-output "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/<run>/grid5000/classified.parquet" \
+      --relevant-output "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/<run>/grid5000/relevant.parquet" \
+      --run-dir "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/<run>/grid5000"
+
+The runner performs policy checks, uses one Nantes `host=1/gpu=1` reservation
+with a 30-minute walltime, and sends only compressed sentence text plus row
+indices. The model and all remote caches stay in node-local `/tmp`; labels and
+logs are copied back to the Seagate before the exact remote temporary directory
+is removed.
+
 ## Further reading
 
 - [Documentation](https://noeflandre.github.io/osm-polygon-web-search/)

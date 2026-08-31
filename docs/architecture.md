@@ -117,3 +117,22 @@ HTML and provider responses are not published to Hugging Face.
 The POC intentionally does not introduce a queue, database server, browser
 automation, or embeddings. The pure candidate, query, provider, fetch, SAT,
 and relevance boundaries are the scale seam.
+
+## Bounded Grid'5000 execution
+
+The GPU path is a separate frontend-only orchestration boundary. The local
+runner reads only the `sentence` column from the Seagate sentence Parquet file,
+writes a deterministic gzip JSON payload, and derives a unique remote run ID
+from the payload and pushed commit hashes. The Nantes frontend performs the
+policy checks, shallow repository checkout, file transfer, OAR submission,
+status polling, and result retrieval; it never loads the model.
+
+The job requests exactly one host and GPU for 30 minutes. The remote worker
+loads the existing LFM classifier on CUDA, classifies bounded batches, and
+atomically checkpoints ordered labels after every batch. The model, `uv`, XDG,
+Hugging Face, and Torch caches share one run-specific node-local `/tmp` tree.
+The tree is removed by the job on exit; the remote `/home` run directory is
+kept until the complete checkpoint, labels, and logs have been copied and
+validated. A nonzero usage-policy check, unexpected OAR state, mismatched
+commit, malformed label payload, or row-index mismatch fails closed. The local
+join writes the complete and yes-only Parquet tables under the Seagate path.

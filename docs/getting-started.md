@@ -73,6 +73,27 @@ other than a single lowercase `yes` or `no` label fails the run. The full
 classification table stays on the Seagate; only `yes` rows are uploaded to
 Hugging Face.
 
+## Remote GPU classification
+
+The repository includes a bounded Grid'5000 path for the memory-intensive LFM
+step. Push the exact repository commit first, then run one job from the local
+checkout with all local paths under the Seagate root:
+
+    uv run python scripts/run_grid5000_relevance.py \
+      --input "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/<run>/segmented/train.parquet" \
+      --classified-output "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/<run>/grid5000/classified.parquet" \
+      --relevant-output "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/<run>/grid5000/relevant.parquet" \
+      --run-dir "/Volumes/Seagate M3/projects/osm-polygon-web-search/runs/<run>/grid5000"
+
+The runner checks Grid'5000 usage policy before and after the job, refuses an
+existing local or remote run directory, checks out the pushed `main` commit,
+submits exactly one Nantes `host=1/gpu=1` job for 30 minutes, and polls it until
+termination. It transfers only row indices and sentence text. The worker
+checkpoints after each batch and stores every model/dependency cache in its
+run-specific node-local `/tmp` tree. After the complete result and logs are
+validated, the runner joins labels to the original Seagate Parquet table and
+removes only that exact remote temporary directory.
+
 With live search enabled, the POC retrieves up to ten result pages for the
 selected polygon in V1 mode. Add `--all-variants` to search all nine variants;
 use `--results N` to request between 1 and 20 pages per variant. Exact

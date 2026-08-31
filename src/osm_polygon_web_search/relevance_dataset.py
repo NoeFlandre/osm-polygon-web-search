@@ -101,21 +101,16 @@ def _source_sentence_inputs(source: pa.Table) -> tuple[list[int], list[str]]:
     return _collect_sentence_inputs(enumerate(sentence_values))
 
 
-def transform_parquet(
-    input_path: Path,
-    classified_output_path: Path,
-    relevant_output_path: Path,
-    classifier: RelevanceClassifier,
-) -> tuple[int, int]:
-    """Write full local labels and the yes-only Viewer table."""
+def _relevance_tables(
+    source: pa.Table,
+    row_indices: Sequence[int],
+    labels: Sequence[RelevanceLabel],
+) -> tuple[pa.Table, pa.Table]:
     import pyarrow as pa
-    import pyarrow.parquet as pq
 
-    source = pq.read_table(input_path)
-    valid_indices, sentences = _source_sentence_inputs(source)
-
-    selected = source.take(pa.array(valid_indices, type=pa.int64()))
-    labels = _classify_sentences(sentences, classifier)
+    if len(row_indices) != len(labels):
+        raise ValueError("label count does not match sentence rows")
+    selected = source.take(pa.array(row_indices, type=pa.int64()))
     classified = selected.append_column(
         "relevance_label",
         pa.array(labels, type=pa.string()),
@@ -124,14 +119,70 @@ def transform_parquet(
         pa.array([RELEVANCE_MODEL_ID] * len(labels), type=pa.string()),
     )
     relevant = classified.filter(
-        pa.array((label == "yes" for label in labels), type=pa.bool_())
+        pa.array([label == "yes" for label in labels], type=pa.bool_())
     )
+    return classified, relevant
+
+
+def _write_relevance_tables(
+    classified_output_path: Path,
+    relevant_output_path: Path,
+    classified: pa.Table,
+    relevant: pa.Table,
+) -> None:
+    import pyarrow.parquet as pq
+
     for output_path, rows in (
         (classified_output_path, classified),
         (relevant_output_path, relevant),
     ):
         output_path.parent.mkdir(parents=True, exist_ok=True)
         pq.write_table(rows, output_path)
+
+
+def transform_parquet(
+    input_path: Path,
+    classified_output_path: Path,
+    relevant_output_path: Path,
+    classifier: RelevanceClassifier,
+) -> tuple[int, int]:
+    """Write full local labels and the yes-only Viewer table."""
+    import pyarrow.parquet as pq
+
+    source = pq.read_table(input_path)
+    valid_indices, sentences = _source_sentence_inputs(source)
+    labels = _classify_sentences(sentences, classifier)
+    classified, relevant = _relevance_tables(source, valid_indices, labels)
+    _write_relevance_tables(
+        classified_output_path,
+        relevant_output_path,
+        classified,
+        relevant,
+    )
+    return classified.num_rows, relevant.num_rows
+
+
+def transform_labeled_parquet(
+    input_path: Path,
+    classified_output_path: Path,
+    relevant_output_path: Path,
+    row_indices: Sequence[int],
+    labels: Sequence[RelevanceLabel],
+) -> tuple[int, int]:
+    """Join externally produced labels onto the exact valid source rows."""
+    import pyarrow.parquet as pq
+
+    source = pq.read_table(input_path)
+    valid_indices, _ = _source_sentence_inputs(source)
+    if list(row_indices) != valid_indices:
+        raise ValueError("label row indices do not match sentence rows")
+    classified, relevant = _relevance_tables(source, valid_indices, labels)
+    _write_relevance_tables(
+        classified_output_path,
+        relevant_output_path,
+        classified,
+        relevant,
+    )
     return classified.num_rows, relevant.num_rows
 
 

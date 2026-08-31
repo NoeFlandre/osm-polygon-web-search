@@ -16,7 +16,7 @@ Run the complete local gate from the repository root:
 
     uv run ruff format --check .
     uv run ruff check .
-    uv run ty check
+    uv run ty check --extra-search-path src
     uv run pytest -q --cov=osm_polygon_web_search --cov-report=term-missing
     uv run mkdocs build --strict --site-dir /tmp/osm-polygon-web-search-site
     uv run mutmut run

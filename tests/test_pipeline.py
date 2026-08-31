@@ -1124,6 +1124,37 @@ def test_run_poc_writes_utf8_json_with_unicode_preserved(monkeypatch, tmp_path) 
     assert '"München"' in output.read_text(encoding="utf-8")
 
 
+def test_run_poc_preserves_the_manifest_json_format(monkeypatch, tmp_path) -> None:
+    plan = _make_pipeline_plan(None, place_name=None)
+    monkeypatch.setattr(
+        pipeline_module,
+        "_build_plan",
+        lambda path, *, keywords: plan,
+    )
+    monkeypatch.setattr(
+        pipeline_module,
+        "ensure_data_path",
+        lambda path: tmp_path,
+    )
+    dump_calls = []
+    original_dump = pipeline_module.json.dump
+
+    def observe_dump(value, handle, **kwargs):
+        dump_calls.append(kwargs)
+        return original_dump(value, handle, **kwargs)
+
+    monkeypatch.setattr(pipeline_module.json, "dump", observe_dump)
+
+    output = run_poc(
+        Path("liechtenstein-latest.osm.pbf"),
+        output_dir=Path("ignored"),
+    )
+
+    expected = json.dumps(plan.as_dict(), indent=2, ensure_ascii=False) + "\n"
+    assert output.read_text(encoding="utf-8") == expected
+    assert dump_calls == [{"indent": 2, "ensure_ascii": False}]
+
+
 def test_run_poc_writes_all_variant_results(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "test-key")
 

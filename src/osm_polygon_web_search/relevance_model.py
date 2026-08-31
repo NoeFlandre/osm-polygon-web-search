@@ -69,17 +69,21 @@ class LfmRelevanceClassifier:
         ]
 
 
-def load_lfm_classifier() -> LfmRelevanceClassifier:
+def load_lfm_classifier(device: str | None = None) -> LfmRelevanceClassifier:
     """Load the approved local model and tokenizer once."""
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     tokenizer: Any = AutoTokenizer.from_pretrained(RELEVANCE_MODEL_ID)
     tokenizer.padding_side = "left"
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    target_device = (
+        device
+        if device is not None
+        else ("mps" if torch.backends.mps.is_available() else "cpu")
+    )
     model = AutoModelForCausalLM.from_pretrained(
         RELEVANCE_MODEL_ID,
-        device_map={"": device},
+        device_map={"": target_device},
         dtype=torch.bfloat16,
     )
     return LfmRelevanceClassifier(tokenizer, model, torch)

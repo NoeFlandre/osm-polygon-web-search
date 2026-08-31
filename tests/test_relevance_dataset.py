@@ -11,6 +11,7 @@ from osm_polygon_web_search.relevance_dataset import (
     _non_empty_sentence,
     classify_rows,
     relevant_rows,
+    transform_labeled_parquet,
     transform_parquet,
 )
 
@@ -416,4 +417,74 @@ def test_transform_parquet_rejects_a_short_classifier_batch(tmp_path: Path) -> N
             classified_path,
             relevant_path,
             ShortClassifier(),
+        )
+
+
+def test_transform_labeled_parquet_writes_tables_from_ordered_labels(
+    tmp_path: Path,
+) -> None:
+    input_path = tmp_path / "input.parquet"
+    classified_path = tmp_path / "classified.parquet"
+    relevant_path = tmp_path / "relevant.parquet"
+    pq.write_table(
+        pa.Table.from_pylist(
+            [
+                {"id": 1, "sentence": "A forest covers the slope."},
+                {"id": 2, "sentence": None},
+                {"id": 3, "sentence": "  "},
+                {"id": 4, "sentence": "The place was mentioned in 1840."},
+            ]
+        ),
+        input_path,
+    )
+
+    counts = transform_labeled_parquet(
+        input_path,
+        classified_path,
+        relevant_path,
+        [0, 3],
+        ["yes", "no"],
+    )
+
+    assert counts == (2, 1)
+    assert pq.read_table(relevant_path).to_pylist() == [
+        {
+            "id": 1,
+            "sentence": "A forest covers the slope.",
+            "relevance_label": "yes",
+            "relevance_model": RELEVANCE_MODEL_ID,
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    ("row_indices", "labels", "message"),
+    [
+        ([1, 3], ["yes", "no"], "label row indices do not match sentence rows"),
+        ([0, 3], ["yes"], "label count does not match sentence rows"),
+    ],
+)
+def test_transform_labeled_parquet_rejects_misaligned_labels(
+    tmp_path: Path,
+    row_indices: list[int],
+    labels: list[RelevanceLabel],
+    message: str,
+) -> None:
+    input_path = tmp_path / "input.parquet"
+    pq.write_table(
+        pa.table(
+            {
+                "sentence": pa.array(["First.", None, "  ", "Last."]),
+            }
+        ),
+        input_path,
+    )
+
+    with pytest.raises(ValueError, match=f"^{message}$"):
+        transform_labeled_parquet(
+            input_path,
+            tmp_path / "classified.parquet",
+            tmp_path / "relevant.parquet",
+            row_indices,
+            labels,
         )

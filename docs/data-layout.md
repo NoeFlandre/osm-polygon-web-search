@@ -30,3 +30,23 @@ The live search adapter is opt-in, and its credentials are read only from the
 
 Future processing work must preserve this boundary and receive a separate
 approved design, tests, documentation, and mutation-testing review.
+
+## Grid'5000 run artifacts
+
+A remote classification run keeps its local control artifacts below the same
+`runs/<run>/grid5000/` directory:
+
+    input.json.gz             sentence-only transfer payload
+    job.sh                    generated OAR job script
+    job.id                    submitted OAR identifier
+    checkpoint.json.gz        retrieved complete ordered labels
+    output.json.gz            retrieved final labels
+    oar.stdout, oar.stderr    retrieved job logs
+    classified.parquet        local complete yes/no join
+    relevant.parquet          local yes-only Viewer table
+    manifest.json             hashes, job, model, and row counts
+
+Only the sentence payload crosses to Grid'5000. The model and dependency caches
+are node-local temporary files; no model cache is written to the MacBook SSD or
+the remote `/home` run directory. The runner removes the exact remote run
+directory only after local validation succeeds.

@@ -216,12 +216,13 @@ def test_classifier_rejects_a_multitoken_answer_label() -> None:
 
 
 @pytest.mark.parametrize(
-    ("mps_available", "expected_device"),
-    [(False, "cpu"), (True, "mps")],
+    ("mps_available", "explicit_device", "expected_device"),
+    [(False, None, "cpu"), (True, None, "mps"), (False, "cuda", "cuda")],
 )
 def test_load_lfm_classifier_uses_one_in_memory_device(
     monkeypatch,
     mps_available: bool,
+    explicit_device: str | None,
     expected_device: str,
 ) -> None:
     def encode(text: str, *, add_special_tokens: bool) -> list[int]:
@@ -262,7 +263,11 @@ def test_load_lfm_classifier_uses_one_in_memory_device(
         ),
     )
 
-    classifier = load_lfm_classifier()
+    classifier = (
+        load_lfm_classifier(explicit_device)
+        if explicit_device is not None
+        else load_lfm_classifier()
+    )
 
     assert isinstance(classifier, LfmRelevanceClassifier)
     assert classifier._tokenizer is tokenizer
