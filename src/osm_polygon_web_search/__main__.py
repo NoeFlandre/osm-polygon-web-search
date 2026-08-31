@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .data_root import data_root
-from .pipeline import DEFAULT_KEYWORDS, DEFAULT_PBF, run_poc
+from .pipeline import DEFAULT_KEYWORDS, DEFAULT_PBF, DEFAULT_RESULT_COUNT, run_poc
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -20,7 +20,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         type=Path,
         default=data_root() / "runs" / "poc",
     )
-    parser.add_argument("--results", type=int, default=5)
+    parser.add_argument("--results", type=int, default=DEFAULT_RESULT_COUNT)
     parser.add_argument("--plan-only", action="store_true")
     parser.add_argument("--search", action="store_true")
     parser.add_argument("--all-variants", action="store_true")

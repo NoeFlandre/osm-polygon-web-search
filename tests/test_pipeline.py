@@ -613,7 +613,15 @@ def test_search_records_skips_pages_that_cannot_be_fetched() -> None:
 def test_search_variant_records_runs_each_query_variant(monkeypatch) -> None:
     calls = []
 
-    def fake_search_records(plan, *, provider, fetcher, result_count, page_cache=None):
+    def fake_search_records(
+        plan,
+        *,
+        provider,
+        fetcher,
+        result_count,
+        page_cache=None,
+        seen_urls=None,
+    ):
         calls.append((plan.query, provider, fetcher, result_count, page_cache))
         return [{"query": plan.query}]
 
@@ -676,7 +684,15 @@ def test_search_variant_records_reads_typed_variants(monkeypatch) -> None:
     )
     search_plans = []
 
-    def fake_search_records(plan, *, provider, fetcher, result_count, page_cache=None):
+    def fake_search_records(
+        plan,
+        *,
+        provider,
+        fetcher,
+        result_count,
+        page_cache=None,
+        seen_urls=None,
+    ):
         search_plans.append(plan)
         return []
 
@@ -716,7 +732,15 @@ def test_search_variant_records_skips_an_ordinary_plan() -> None:
 def test_search_variant_records_shares_a_page_cache(monkeypatch) -> None:
     caches = []
 
-    def fake_search_records(plan, *, provider, fetcher, result_count, page_cache):
+    def fake_search_records(
+        plan,
+        *,
+        provider,
+        fetcher,
+        result_count,
+        page_cache,
+        seen_urls,
+    ):
         caches.append(page_cache)
         return []
 
@@ -738,6 +762,138 @@ def test_search_variant_records_shares_a_page_cache(monkeypatch) -> None:
     assert len(caches) == 2
     assert isinstance(caches[0], dict)
     assert caches[0] is caches[1]
+
+
+def test_search_variant_records_keeps_the_first_occurrence_of_each_url() -> None:
+    class Provider:
+        def search(self, query: str, *, count: int = 5) -> list[SearchResult]:
+            if query == "one":
+                return [
+                    SearchResult(1, "Shared first", "https://example.test/shared", ""),
+                    SearchResult(2, "Only one", "https://example.test/one", ""),
+                ]
+            return [
+                SearchResult(1, "Shared second", "https://example.test/shared", ""),
+                SearchResult(2, "Only two", "https://example.test/two", ""),
+            ]
+
+    class Fetcher:
+        def fetch(self, url: str) -> FetchedPage:
+            return FetchedPage(
+                url=url,
+                status=200,
+                html="<p>Alp X is a physical place.</p>",
+                text="Alp X is a physical place.",
+            )
+
+    records = pipeline_module._search_variant_records(
+        _make_pipeline_plan(
+            None,
+            query_variants=(
+                pipeline_module._QueryVariant("v1", "one", "one"),
+                pipeline_module._QueryVariant("v2", "two", "two"),
+            ),
+        ),
+        provider=Provider(),
+        fetcher=Fetcher(),
+        result_count=10,
+    )
+
+    assert [item["results"] for item in records] == [
+        [
+            {
+                "result": {
+                    "rank": 1,
+                    "title": "Shared first",
+                    "url": "https://example.test/shared",
+                    "snippet": "",
+                },
+                "page": {
+                    "url": "https://example.test/shared",
+                    "status": 200,
+                },
+                "evidence": [],
+            },
+            {
+                "result": {
+                    "rank": 2,
+                    "title": "Only one",
+                    "url": "https://example.test/one",
+                    "snippet": "",
+                },
+                "page": {
+                    "url": "https://example.test/one",
+                    "status": 200,
+                },
+                "evidence": [],
+            },
+        ],
+        [
+            {
+                "result": {
+                    "rank": 2,
+                    "title": "Only two",
+                    "url": "https://example.test/two",
+                    "snippet": "",
+                },
+                "page": {
+                    "url": "https://example.test/two",
+                    "status": 200,
+                },
+                "evidence": [],
+            }
+        ],
+    ]
+
+
+def test_new_search_results_preserves_order_without_a_seen_url_set() -> None:
+    search_results = (
+        SearchResult(1, "First", "https://example.test/first", ""),
+        SearchResult(2, "Second", "https://example.test/second", ""),
+    )
+
+    assert pipeline_module._new_search_results(search_results, None) == [
+        *search_results
+    ]
+
+
+def test_search_variant_records_does_not_share_urls_between_polygons() -> None:
+    class Provider:
+        def search(self, query: str, *, count: int = 5) -> list[SearchResult]:
+            return [SearchResult(1, "Shared", "https://example.test/shared", "")]
+
+    class Fetcher:
+        def fetch(self, url: str) -> FetchedPage:
+            return FetchedPage(
+                url=url,
+                status=200,
+                html="<p>Physical place.</p>",
+                text="Physical place.",
+            )
+
+    first = pipeline_module._search_variant_records(
+        _make_pipeline_plan(
+            None,
+            place_name="First place",
+            query_variants=(pipeline_module._QueryVariant("v1", "one", "one"),),
+        ),
+        provider=Provider(),
+        fetcher=Fetcher(),
+        result_count=10,
+    )
+    second = pipeline_module._search_variant_records(
+        _make_pipeline_plan(
+            None,
+            place_name="Second place",
+            query_variants=(pipeline_module._QueryVariant("v1", "one", "one"),),
+        ),
+        provider=Provider(),
+        fetcher=Fetcher(),
+        result_count=10,
+    )
+
+    assert len(first[0]["results"]) == 1
+    assert len(second[0]["results"]) == 1
 
 
 def test_search_records_uses_serial_fetching_when_delay_is_configured(
@@ -881,7 +1037,7 @@ def test_run_poc_writes_the_manifest_inside_the_validated_output_path(
     assert search_calls[0][0] is built_plan
     assert isinstance(search_calls[0][1], pipeline_module.BraveSearchProvider)
     assert isinstance(search_calls[0][2], pipeline_module.PageFetcher)
-    assert search_calls[0][3] == 5
+    assert search_calls[0][3] == 10
 
 
 def test_run_poc_writes_a_plan_without_live_search(monkeypatch, tmp_path) -> None:
@@ -1028,4 +1184,4 @@ def test_run_poc_writes_all_variant_results(monkeypatch, tmp_path) -> None:
     assert search_calls[0][0] is built_plan
     assert isinstance(search_calls[0][1], pipeline_module.BraveSearchProvider)
     assert isinstance(search_calls[0][2], pipeline_module.PageFetcher)
-    assert search_calls[0][3] == 5
+    assert search_calls[0][3] == 10

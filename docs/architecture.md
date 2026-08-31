@@ -36,10 +36,12 @@ one approved keyword phrase. The variants are:
     V8  "Alpe Vermales" "Liechtenstein" "buildings infrastructure"
     V9  "Alpe Vermales" "Liechtenstein" "landscape environment"
 
-Live search retrieves up to five result pages per variant by default when
+Live search retrieves up to ten result pages per variant by default when
 `--all-variants` is supplied. The `--results` option allows 1–20 pages per
 variant; fewer may be returned when the provider has fewer results or a page
-fetch fails.
+fetch fails. Exact duplicate URLs are kept only at their first occurrence
+within one polygon's ordered variant results; separate polygons have
+independent URL scopes.
 
 The search engine is accessed through a provider adapter. The first adapter is
 the [Brave Search API](https://brave.com/search/api/), using its JSON web-search

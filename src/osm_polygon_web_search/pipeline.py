@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Iterable, Mapping, MutableMapping, MutableSet, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -21,6 +21,7 @@ from .search import BraveSearchProvider, SearchProvider, SearchResult
 
 DEFAULT_PBF = data_root() / "liechtenstein-latest.osm.pbf"
 DEFAULT_KEYWORDS = ("land cover",)
+DEFAULT_RESULT_COUNT = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +177,22 @@ def _serialize_search_results(
     return records
 
 
+def _new_search_results(
+    search_results: Sequence[SearchResult],
+    seen_urls: MutableSet[str] | None,
+) -> list[SearchResult]:
+    if seen_urls is None:
+        return list(search_results)
+
+    new_results: list[SearchResult] = []
+    for result in search_results:
+        if result.url in seen_urls:
+            continue
+        seen_urls.add(result.url)
+        new_results.append(result)
+    return new_results
+
+
 def _search_records(
     plan: _PipelinePlan,
     *,
@@ -183,13 +200,17 @@ def _search_records(
     fetcher: PageProvider,
     result_count: int,
     page_cache: MutableMapping[str, FetchedPage] | None = None,
+    seen_urls: MutableSet[str] | None = None,
 ) -> list[dict[str, Any]]:
     query = plan.query
     selected = plan.selection.selected
     if query is None or selected is None:
         return []
 
-    search_results = list(provider.search(query, count=result_count))
+    search_results = _new_search_results(
+        provider.search(query, count=result_count),
+        seen_urls,
+    )
     pages = fetch_pages(
         fetcher,
         [result.url for result in search_results],
@@ -214,6 +235,7 @@ def _search_variant_records(
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     page_cache: dict[str, FetchedPage] = {}
+    seen_urls: set[str] = set()
     if plan.query_variants is None:
         return records
 
@@ -230,6 +252,7 @@ def _search_variant_records(
                     fetcher=fetcher,
                     result_count=result_count,
                     page_cache=page_cache,
+                    seen_urls=seen_urls,
                 ),
             }
         )
@@ -242,7 +265,7 @@ def run_poc(
     output_dir: Path,
     keywords: Iterable[str] = DEFAULT_KEYWORDS,
     search: bool = False,
-    result_count: int = 5,
+    result_count: int = DEFAULT_RESULT_COUNT,
     all_variants: bool = False,
 ) -> Path:
     validated_pbf = ensure_data_path(pbf_path)

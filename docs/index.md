@@ -13,8 +13,10 @@ The approved first pipeline is deliberately small:
   terrain, soil surface, ecosystem, physical geography, buildings
   infrastructure, and landscape environment;
 - uses a Brave Search API adapter for opt-in live queries;
-- retrieves up to five result pages per variant by default (`--results` accepts
+- retrieves up to ten result pages per variant by default (`--results` accepts
   1–20; `--all-variants` runs V1–V9);
+- removes exact duplicate URLs per polygon, keeping the first ordered
+  occurrence while keeping URL scopes independent between polygons;
 - extracts page text with Trafilatura, removes obvious extraction scaffolding,
   and expands it into sentence-level rows with `segment-any-text/sat-3l-sm`;
 - classifies every sentence locally with `LiquidAI/LFM2.5-2.6B` using the

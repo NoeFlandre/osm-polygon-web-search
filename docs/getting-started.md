@@ -73,9 +73,11 @@ other than a single lowercase `yes` or `no` label fails the run. The full
 classification table stays on the Seagate; only `yes` rows are uploaded to
 Hugging Face.
 
-With live search enabled, the POC retrieves up to five result pages for the
+With live search enabled, the POC retrieves up to ten result pages for the
 selected polygon in V1 mode. Add `--all-variants` to search all nine variants;
-use `--results N` to request between 1 and 20 pages per variant.
+use `--results N` to request between 1 and 20 pages per variant. Exact
+duplicate URLs are retained only on their first occurrence within one
+polygon; separate polygons are processed independently.
 
 Live search is opt-in and requires a Brave API key:
 

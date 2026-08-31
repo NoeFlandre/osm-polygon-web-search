@@ -133,7 +133,7 @@ def test_main_uses_stable_cli_defaults(monkeypatch, capsys) -> None:
                 "output_dir": data_root() / "runs" / "poc",
                 "keywords": DEFAULT_KEYWORDS,
                 "search": False,
-                "result_count": 5,
+                "result_count": 10,
                 "all_variants": False,
             },
         )
