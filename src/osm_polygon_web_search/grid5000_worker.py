@@ -32,11 +32,10 @@ def _checkpoint_state(
     if not checkpoint_path.exists():
         return [], False
     checkpoint: LabelPayload = parse_label_payload(checkpoint_path.read_bytes())
-    checkpoint_indices = [entry["row_index"] for entry in checkpoint["entries"]]
     expected_indices = (
         expected_row_indices
         if checkpoint["complete"]
-        else expected_row_indices[: len(checkpoint_indices)]
+        else expected_row_indices[: len(checkpoint["entries"])]
     )
     labels = validate_label_payload(
         checkpoint,
@@ -107,30 +106,23 @@ def run_worker(
     row_indices = [entry["row_index"] for entry in sentence_entries]
     sentences = [entry["sentence"] for entry in sentence_entries]
     labels, checkpoint_complete = _checkpoint_state(checkpoint_path, row_indices)
-    if checkpoint_complete:
-        write_payload(
-            output_path,
-            build_label_payload(
-                _label_entries(row_indices, labels),
-                complete=True,
-            ),
+    if not checkpoint_complete:
+        if classifier is None and len(labels) < len(sentences):
+            classifier = load_lfm_classifier(device)
+        _classify_pending(
+            sentences,
+            row_indices,
+            labels,
+            checkpoint_path,
+            batch_size,
+            classifier,
+            write_payload,
         )
-        return len(labels)
-    if classifier is None and len(labels) < len(sentences):
-        classifier = load_lfm_classifier(device)
-    _classify_pending(
-        sentences,
-        row_indices,
-        labels,
-        checkpoint_path,
-        batch_size,
-        classifier,
-        write_payload,
-    )
     completed_payload = build_label_payload(
         _label_entries(row_indices, labels),
         complete=True,
     )
-    write_payload(checkpoint_path, completed_payload)
+    if not checkpoint_complete:
+        write_payload(checkpoint_path, completed_payload)
     write_payload(output_path, completed_payload)
     return len(labels)

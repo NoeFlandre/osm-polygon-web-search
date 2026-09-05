@@ -5,7 +5,6 @@ from .llm_relevance import (
     RELEVANCE_MODEL_ID,
     RelevanceLabel,
     build_relevance_prompt,
-    parse_relevance_output,
 )
 
 LOGITS_TO_KEEP = 1
@@ -62,9 +61,7 @@ class LfmRelevanceClassifier:
         if len(yes_scores) != expected_batch_size:
             raise ValueError("model output batch does not match input batch")
         return [
-            parse_relevance_output(
-                "yes" if yes_scores[index] > no_scores[index] else "no"
-            )
+            "yes" if yes_scores[index] > no_scores[index] else "no"
             for index in range(len(yes_scores))
         ]
 

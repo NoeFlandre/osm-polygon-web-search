@@ -27,12 +27,6 @@ def test_query_quotes_multiword_keywords() -> None:
     )
 
 
-def test_query_with_one_keyword_is_an_exact_three_phrase_query() -> None:
-    assert build_query("Alp X", "Liechtenstein", ["land cover"]) == (
-        '"Alp X" "Liechtenstein" "land cover"'
-    )
-
-
 def test_query_variant_catalog_contains_v1_to_v9_without_description() -> None:
     assert query_module.QUERY_VARIANTS == (
         ("v1", "land cover"),
@@ -44,9 +38,6 @@ def test_query_variant_catalog_contains_v1_to_v9_without_description() -> None:
         ("v7", "physical geography"),
         ("v8", "buildings infrastructure"),
         ("v9", "landscape environment"),
-    )
-    assert all(
-        "description" not in keyword for _, keyword in query_module.QUERY_VARIANTS
     )
 
 

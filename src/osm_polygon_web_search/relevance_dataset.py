@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
 
@@ -22,29 +22,15 @@ CLASSIFICATION_BATCH_SIZE = 16
 SourceT = TypeVar("SourceT")
 
 
-def _non_empty_sentence(value: object) -> str | None:
-    if isinstance(value, str) and value.strip():
-        return value
-    return None
-
-
-def _iter_sentence_inputs(
-    values: Iterable[tuple[SourceT, object]],
-) -> Iterator[tuple[SourceT, str]]:
-    for source, value in values:
-        sentence = _non_empty_sentence(value)
-        if sentence is not None:
-            yield source, sentence
-
-
 def _collect_sentence_inputs(
     values: Iterable[tuple[SourceT, object]],
 ) -> tuple[list[SourceT], list[str]]:
     sources: list[SourceT] = []
     sentences: list[str] = []
-    for source, sentence in _iter_sentence_inputs(values):
-        sources.append(source)
-        sentences.append(sentence)
+    for source, sentence in values:
+        if isinstance(sentence, str) and sentence.strip():
+            sources.append(source)
+            sentences.append(sentence)
     return sources, sentences
 
 
@@ -80,13 +66,9 @@ def classify_rows(
     sentence_rows: list[DatasetRecord] = [dict(row) for row in source_rows]
 
     labels = _classify_sentences(sentences, classifier)
-    return [
-        {
-            **sentence_rows[index],
-            **_relevance_metadata(labels[index]),
-        }
-        for index in range(len(sentence_rows))
-    ]
+    for index, row in enumerate(sentence_rows):
+        row.update(_relevance_metadata(labels[index]))
+    return sentence_rows
 
 
 def relevant_rows(rows: Iterable[DatasetRow]) -> list[DatasetRecord]:

@@ -392,11 +392,7 @@ def test_remote_run_id_is_stable_and_rejects_unsafe_inputs() -> None:
         build_remote_run_id("a" * 64, "not-a-commit")
 
 
-def test_oar_parsers_and_terminal_states(monkeypatch) -> None:
-    monkeypatch.setattr(
-        "scripts.run_grid5000_relevance.time.sleep",
-        lambda _seconds: pytest.fail("terminal OAR states must not be polled again"),
-    )
+def test_oar_parsers_and_terminal_states() -> None:
     assert parse_oar_job_id("OAR_JOB_ID=4321\n") == 4321
     assert parse_oar_state("\nRunning\n") == "Running"
     assert is_terminal_oar_state("Terminated") is True

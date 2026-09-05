@@ -27,6 +27,7 @@ from osm_polygon_web_search.grid5000 import (
     validate_policy_output,
     write_sentence_payload,
 )
+from osm_polygon_web_search.llm_relevance import RELEVANCE_MODEL_ID
 from osm_polygon_web_search.relevance_dataset import transform_labeled_parquet
 
 DEFAULT_REMOTE_BASE = Path("/home/nflandre/osm-polygon-web-search-grid5000")
@@ -403,7 +404,7 @@ def run_pipeline(
             "classified_count": classified_count,
             "commit_sha": config.commit_sha,
             "job_id": job_id,
-            "model_id": "LiquidAI/LFM2.5-2.6B",
+            "model_id": RELEVANCE_MODEL_ID,
             "payload_sha256": payload_digest,
             "relevant_count": relevant_count,
             "run_id": run_id,

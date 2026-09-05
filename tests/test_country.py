@@ -9,12 +9,6 @@ def test_country_comes_from_the_pbf_basename() -> None:
     assert country_from_pbf(Path("liechtenstein-latest.osm.pbf")) == "Liechtenstein"
 
 
-def test_country_stem_removes_pbf_and_latest_suffixes() -> None:
-    from osm_polygon_web_search.country import _country_stem
-
-    assert _country_stem(Path("liechtenstein-latest.osm.pbf")) == "liechtenstein"
-
-
 def test_country_resolution_does_not_require_filesystem_access() -> None:
     assert country_from_pbf(Path("liechtenstein.osm.pbf")) == "Liechtenstein"
 

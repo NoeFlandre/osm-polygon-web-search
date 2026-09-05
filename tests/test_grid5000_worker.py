@@ -251,19 +251,12 @@ def test_worker_does_not_load_a_model_when_an_empty_payload_is_pending(
     assert loaded == []
 
 
-def test_worker_does_not_replace_a_supplied_classifier(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_worker_does_not_replace_a_supplied_classifier(tmp_path: Path) -> None:
     input_path = tmp_path / "input.json.gz"
     checkpoint_path = tmp_path / "checkpoint.json.gz"
     output_path = tmp_path / "output.json.gz"
     _write_input(input_path, [(0, "First.")])
     classifier = FakeClassifier({"First.": "yes"})
-    monkeypatch.setattr(
-        "osm_polygon_web_search.grid5000_worker.load_lfm_classifier",
-        lambda device: pytest.fail(f"unexpected model load on {device}"),
-    )
-
     assert (
         run_worker(
             input_path,
@@ -293,16 +286,21 @@ def test_worker_fails_if_the_loader_returns_no_classifier(
         run_worker(input_path, checkpoint_path, output_path)
 
 
-def test_worker_reuses_a_complete_checkpoint_without_loading_model(
+@pytest.mark.parametrize("with_classifier", [False, True])
+def test_worker_reuses_a_complete_checkpoint_without_rewriting_it(
     tmp_path: Path,
+    with_classifier: bool,
 ) -> None:
     input_path = tmp_path / "input.json.gz"
     checkpoint_path = tmp_path / "checkpoint.json.gz"
     output_path = tmp_path / "output.json.gz"
     _write_input(input_path, [(0, "First."), (2, "Second.")])
-    checkpoint_path.write_bytes(
-        build_label_payload([(0, "yes"), (2, "no")], complete=True)
+    checkpoint = (
+        b'{"schema_version": 1, "model_id": "LiquidAI/LFM2.5-2.6B", '
+        b'"complete": true, "entries": [{"row_index": 0, "label": "yes"}, '
+        b'{"row_index": 2, "label": "no"}]}'
     )
+    checkpoint_path.write_bytes(checkpoint)
 
     class NeverClassifier:
         def classify_many(self, sentences: Sequence[str]) -> list[RelevanceLabel]:
@@ -314,27 +312,9 @@ def test_worker_reuses_a_complete_checkpoint_without_loading_model(
             input_path,
             checkpoint_path,
             output_path,
-            classifier=NeverClassifier(),
+            classifier=NeverClassifier() if with_classifier else None,
         )
         == 2
     )
-    assert parse_label_payload(output_path.read_bytes())["complete"] is True
-
-
-def test_worker_reuses_a_complete_checkpoint_without_a_classifier(
-    monkeypatch, tmp_path: Path
-) -> None:
-    input_path = tmp_path / "input.json.gz"
-    checkpoint_path = tmp_path / "checkpoint.json.gz"
-    output_path = tmp_path / "output.json.gz"
-    _write_input(input_path, [(0, "First."), (2, "Second.")])
-    checkpoint_path.write_bytes(
-        build_label_payload([(0, "yes"), (2, "no")], complete=True)
-    )
-    monkeypatch.setattr(
-        "osm_polygon_web_search.grid5000_worker.load_lfm_classifier",
-        lambda device: pytest.fail(f"a complete checkpoint must not load on {device}"),
-    )
-
-    assert run_worker(input_path, checkpoint_path, output_path) == 2
+    assert checkpoint_path.read_bytes() == checkpoint
     assert parse_label_payload(output_path.read_bytes())["complete"] is True

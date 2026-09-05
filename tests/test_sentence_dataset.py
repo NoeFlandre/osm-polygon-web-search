@@ -59,48 +59,6 @@ def test_iter_text_inputs_keeps_strings_and_skips_other_values() -> None:
     ) == [(2, ""), (5, "First.")]
 
 
-def _observe_text_input_calls(monkeypatch):
-    import osm_polygon_web_search.sentence_dataset as module
-
-    calls = []
-    original = module._iter_text_inputs
-
-    def observe(values):
-        materialized = list(values)
-        calls.append(materialized)
-        return original(materialized)
-
-    monkeypatch.setattr(module, "_iter_text_inputs", observe)
-    return calls
-
-
-def test_sentence_rows_uses_the_shared_text_input_boundary(monkeypatch) -> None:
-    calls = _observe_text_input_calls(monkeypatch)
-    row = {"page_url": "https://example.test/page", "text": "First."}
-
-    sentence_rows([row], FakeSegmenter())
-
-    assert calls == [[(row, "First.")]]
-
-
-def test_source_text_inputs_uses_the_shared_text_input_boundary(monkeypatch) -> None:
-    calls = _observe_text_input_calls(monkeypatch)
-    source = pa.table({"text": pa.array(["First.", None, ""])})
-
-    assert _source_text_inputs(source) == ([0, 2], ["First.", ""])
-    assert calls == [[(0, "First."), (1, None), (2, "")]]
-
-
-def test_source_text_inputs_exposes_named_fields() -> None:
-    source = pa.table({"text": pa.array(["First.", None, ""])})
-
-    inputs = _source_text_inputs(source)
-
-    assert inputs.source_indices == [0, 2]
-    assert inputs.texts == ["First.", ""]
-    assert inputs == ([0, 2], ["First.", ""])
-
-
 def test_sentence_metadata_has_the_persisted_field_contract() -> None:
     from osm_polygon_web_search.sentence_dataset import _sentence_metadata
 
@@ -262,23 +220,7 @@ def test_expand_sentence_groups_preserves_arrow_row_order_and_metadata() -> None
     )
 
 
-def test_expand_sentence_groups_exposes_named_fields() -> None:
-    from osm_polygon_web_search.sentence_dataset import _expand_sentence_groups
-
-    expansion = _expand_sentence_groups(
-        [4, 9],
-        [["First.", "Second!"], ["Third?"]],
-    )
-
-    assert expansion.repeated_indices == [4, 4, 9]
-    assert expansion.sentence_values == ["First.", "Second!", "Third?"]
-    assert expansion.sentence_indices == [0, 1, 0]
-    assert expansion.sentence_counts == [2, 2, 1]
-
-
 def test_source_text_inputs_keeps_string_rows_in_source_order() -> None:
-    from osm_polygon_web_search.sentence_dataset import _source_text_inputs
-
     source = pa.table({"text": pa.array(["First.", None, ""])})
 
     assert _source_text_inputs(source) == ([0, 2], ["First.", ""])

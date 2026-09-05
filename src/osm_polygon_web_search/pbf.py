@@ -76,17 +76,13 @@ def _candidate(
     tags: Mapping[str, str],
     geometry: Mapping[str, object],
     *,
-    name_key: str | None = None,
-) -> PolygonCandidate | None:
-    name = tags.get("name", "")
-    normalized_name = normalize_name(name) if name_key is None else name_key
-    if not normalized_name:
-        return None
+    name_key: str,
+) -> PolygonCandidate:
     return PolygonCandidate(
         osm_type=osm_type,
         osm_id=osm_id,
-        name_raw=name,
-        name_key=normalized_name,
+        name_raw=tags["name"],
+        name_key=name_key,
         tags=dict(tags),
         geometry=dict(geometry),
     )

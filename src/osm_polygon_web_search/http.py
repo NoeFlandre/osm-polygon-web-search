@@ -92,7 +92,9 @@ def _request_once(
         with opener(request, timeout=timeout) as response:
             status = int(getattr(response, "status", 200))
             headers = getattr(response, "headers", {})
-            payload = _read_payload(response, read_limit)
+            payload = (
+                response.read(read_limit) if read_limit is not None else response.read()
+            )
     except HTTPError as error:
         error_headers: HeaderValues = error.headers if error.headers is not None else {}
         return HTTPResponse(
@@ -111,7 +113,3 @@ def _request_once(
         payload=payload,
         error=None,
     )
-
-
-def _read_payload(response: HTTPResponseLike, read_limit: int | None) -> bytes:
-    return response.read(read_limit) if read_limit is not None else response.read()

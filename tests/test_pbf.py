@@ -1,26 +1,10 @@
 import json
 from types import SimpleNamespace
-from typing import get_type_hints
 
 import osmium.filter
 import pytest
 
 from osm_polygon_web_search.pbf import is_area_relation, way_geometry
-
-
-def test_osmium_helpers_have_structural_boundary_types() -> None:
-    from osm_polygon_web_search import pbf
-
-    assert get_type_hints(pbf._way_candidate)["obj"] is pbf._WayObject
-    relation_geometry_hints = get_type_hints(pbf._relation_geometry)
-    assert relation_geometry_hints["factory"] is pbf._GeometryFactory
-    assert relation_geometry_hints["obj"] is pbf._AreaObject
-    relation_candidate_hints = get_type_hints(pbf._relation_candidate)
-    assert relation_candidate_hints["obj"] is pbf._AreaObject
-    assert relation_candidate_hints["factory"] is pbf._GeometryFactory
-    object_candidate_hints = get_type_hints(pbf._object_candidate)
-    assert object_candidate_hints["obj"] is object
-    assert object_candidate_hints["factory"] is pbf._GeometryFactory
 
 
 def test_closed_way_becomes_a_polygon() -> None:
@@ -79,7 +63,6 @@ def test_invalid_closed_rings_are_rejected() -> None:
 class FakeObject:
     def __init__(
         self,
-        kind: str,
         *,
         object_id: int,
         tags: dict[str, str],
@@ -87,18 +70,11 @@ class FakeObject:
         from_way: bool = False,
         geometry: str = "{}",
     ) -> None:
-        self.kind = kind
         self.id = object_id
         self.tags = tags
         self.nodes = [SimpleNamespace(lon=lon, lat=lat) for lon, lat in nodes or []]
         self._from_way = from_way
         self._geometry = geometry
-
-    def is_way(self) -> bool:
-        return self.kind == "way"
-
-    def is_area(self) -> bool:
-        return self.kind == "area"
 
     def from_way(self) -> bool:
         return self._from_way
@@ -142,34 +118,10 @@ class FakeFactory:
         return obj._geometry
 
 
-def test_candidate_rejects_an_empty_normalized_name() -> None:
-    from osm_polygon_web_search import pbf
-
-    assert pbf._candidate("way", 1, {"name": "  "}, {"type": "Polygon"}) is None
-
-
-def test_candidate_rejects_a_missing_name() -> None:
-    from osm_polygon_web_search import pbf
-
-    assert pbf._candidate("way", 1, {}, {"type": "Polygon"}) is None
-
-
-def test_candidate_uses_a_supplied_normalized_name() -> None:
-    from osm_polygon_web_search import pbf
-
-    candidate = pbf._candidate(
-        "way",
-        1,
-        {"name": "Raw Name"},
-        {"type": "Polygon"},
-        name_key="precomputed-key",
-    )
-
-    assert candidate is not None
-    assert candidate.name_key == "precomputed-key"
-
-
-def test_unnamed_way_is_rejected_before_geometry(monkeypatch) -> None:
+@pytest.mark.parametrize("tags", [{}, {"name": ""}, {"name": "  "}])
+def test_unnamed_way_is_rejected_before_geometry(
+    monkeypatch, tags: dict[str, str]
+) -> None:
     from osm_polygon_web_search import pbf
 
     monkeypatch.setattr(
@@ -181,9 +133,8 @@ def test_unnamed_way_is_rejected_before_geometry(monkeypatch) -> None:
     assert (
         pbf._way_candidate(
             FakeWay(
-                "way",
                 object_id=1,
-                tags={},
+                tags=tags,
                 nodes=[(7.0, 47.0), (7.1, 47.0), (7.0, 47.0)],
             )
         )
@@ -203,7 +154,6 @@ def test_way_candidate_does_not_normalize_the_name_twice(monkeypatch) -> None:
     monkeypatch.setattr(pbf, "normalize_name", normalize)
     candidate = pbf._way_candidate(
         FakeWay(
-            "way",
             object_id=1,
             tags={"name": "Raw Name"},
             nodes=[(7.0, 47.0), (7.1, 47.0), (7.0, 47.1), (7.0, 47.0)],
@@ -215,7 +165,10 @@ def test_way_candidate_does_not_normalize_the_name_twice(monkeypatch) -> None:
     assert calls == ["Raw Name"]
 
 
-def test_unnamed_area_relation_is_rejected_before_geometry(monkeypatch) -> None:
+@pytest.mark.parametrize("tags", [{}, {"name": ""}, {"name": "  "}])
+def test_unnamed_area_relation_is_rejected_before_geometry(
+    monkeypatch, tags: dict[str, str]
+) -> None:
     from osm_polygon_web_search import pbf
 
     monkeypatch.setattr(
@@ -227,9 +180,8 @@ def test_unnamed_area_relation_is_rejected_before_geometry(monkeypatch) -> None:
     assert (
         pbf._relation_candidate(
             FakeArea(
-                "area",
                 object_id=1,
-                tags={"type": "multipolygon"},
+                tags={"type": "multipolygon", **tags},
             ),
             FakeFactory(),
         )
@@ -249,7 +201,6 @@ def test_relation_candidate_does_not_normalize_the_name_twice(monkeypatch) -> No
     monkeypatch.setattr(pbf, "normalize_name", normalize)
     candidate = pbf._relation_candidate(
         FakeArea(
-            "area",
             object_id=1,
             tags={"type": "multipolygon", "name": "Raw Name"},
             geometry=json.dumps({"type": "MultiPolygon", "coordinates": [[[[]]]]}),
@@ -271,45 +222,39 @@ def test_scan_pbf_collects_closed_ways_and_valid_area_relations(monkeypatch) -> 
     entities_seen = []
     processors = []
     objects = [
-        FakeWay("way", object_id=1, tags={"name": "Closed"}, nodes=ring),
-        FakeWay("way", object_id=2, tags={"name": "Open"}, nodes=ring[:-1]),
-        FakeWay("way", object_id=3, tags={"name": ""}, nodes=ring),
+        FakeWay(object_id=1, tags={"name": "Closed"}, nodes=ring),
+        FakeWay(object_id=2, tags={"name": "Open"}, nodes=ring[:-1]),
+        FakeWay(object_id=3, tags={"name": ""}, nodes=ring),
         FakeWay(
-            "way",
             object_id=11,
             tags={"name": "Not an area", "area": "no"},
             nodes=ring,
         ),
-        FakeObject("relation", object_id=4, tags={"type": "route"}),
-        FakeArea("area", object_id=5, tags={"type": "multipolygon"}, from_way=True),
+        FakeObject(object_id=4, tags={"type": "route"}),
+        FakeArea(object_id=5, tags={"type": "multipolygon"}, from_way=True),
         FakeArea(
-            "area",
             object_id=12,
             tags={"type": "multipolygon", "name": "Way-derived area"},
             from_way=True,
             geometry=json.dumps({"type": "MultiPolygon", "coordinates": [[[[]]]]}),
         ),
-        FakeArea("area", object_id=6, tags={"type": "route"}),
+        FakeArea(object_id=6, tags={"type": "route"}),
         FakeArea(
-            "area",
             object_id=7,
             tags={"type": "multipolygon", "name": "Broken relation"},
             geometry="raise",
         ),
         FakeArea(
-            "area",
             object_id=8,
             tags={"type": "multipolygon", "name": "Empty relation"},
             geometry="[]",
         ),
         FakeArea(
-            "area",
             object_id=9,
             tags={"type": "multipolygon", "name": "Named relation"},
             geometry=json.dumps({"type": "MultiPolygon", "coordinates": [[[[]]]]}),
         ),
         FakeArea(
-            "area",
             object_id=10,
             tags={"type": "multipolygon"},
             geometry=json.dumps({"type": "MultiPolygon", "coordinates": [[[[]]]]}),

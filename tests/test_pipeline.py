@@ -60,39 +60,6 @@ def test_pipeline_preserves_the_legacy_path_boundary_alias() -> None:
     assert pipeline_module.ensure_data_path is data_root_ensure_data_path
 
 
-def test_selection_plan_serializes_the_existing_selection_shape() -> None:
-    candidate = PolygonCandidate(
-        osm_type="way",
-        osm_id=42,
-        name_raw="Alp X",
-        name_key=normalize_name("Alp X"),
-        tags={"name": "Alp X"},
-        geometry={"type": "Polygon", "coordinates": []},
-    )
-
-    selection = pipeline_module._SelectionPlan(
-        pbf_path=Path("liechtenstein-latest.osm.pbf"),
-        country="Liechtenstein",
-        candidate_count=3,
-        unique_candidate_count=1,
-        selected=candidate,
-    )
-
-    assert selection.as_dict() == {
-        "pbf": "liechtenstein-latest.osm.pbf",
-        "country": "Liechtenstein",
-        "candidate_count": 3,
-        "unique_candidate_count": 1,
-        "selected": {
-            "identity": ["way", 42],
-            "name_raw": "Alp X",
-            "name_key": "alp x",
-            "tags": {"name": "Alp X"},
-            "geometry": {"type": "Polygon", "coordinates": []},
-        },
-    }
-
-
 def test_pipeline_plan_serializes_typed_query_state() -> None:
     candidate = PolygonCandidate(
         osm_type="way",
@@ -337,50 +304,6 @@ def test_build_plan_reports_no_selection_when_the_pbf_has_no_candidates(
 
     assert plan["selected"] is None
     assert plan["query"] is None
-
-
-def test_run_poc_passes_the_typed_plan_to_search_before_serializing(
-    monkeypatch,
-    tmp_path,
-) -> None:
-    typed_plan = pipeline_module._PipelinePlan(
-        selection=pipeline_module._SelectionPlan(
-            pbf_path=tmp_path / "source.pbf",
-            country="Liechtenstein",
-            candidate_count=0,
-            unique_candidate_count=0,
-            selected=None,
-        ),
-        query=None,
-    )
-    search_plans = []
-
-    monkeypatch.setattr(
-        pipeline_module,
-        "_build_plan",
-        lambda path, *, keywords: typed_plan,
-    )
-    monkeypatch.setattr(
-        pipeline_module,
-        "ensure_data_path",
-        lambda path: tmp_path,
-    )
-
-    def fake_search_records(plan, *, provider, fetcher, result_count):
-        search_plans.append(plan)
-        return []
-
-    monkeypatch.setattr(pipeline_module, "_search_records", fake_search_records)
-    monkeypatch.setenv("BRAVE_SEARCH_API_KEY", "test-key")
-
-    output = run_poc(
-        Path("liechtenstein-latest.osm.pbf"),
-        output_dir=Path("ignored"),
-        search=True,
-    )
-
-    assert search_plans == [typed_plan]
-    assert json.loads(output.read_text())["results"] == []
 
 
 def test_search_records_skip_an_unsearchable_plan() -> None:
@@ -1030,7 +953,7 @@ def test_run_poc_writes_the_manifest_inside_the_validated_output_path(
     )
 
     assert output == tmp_path / "run.json"
-    assert '"results": []' in output.read_text()
+    assert json.loads(output.read_text())["results"] == []
     assert build_calls == [(tmp_path, ("land cover",))]
     assert ensured_paths == [input_path, output_path]
     assert len(search_calls) == 1

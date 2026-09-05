@@ -18,6 +18,7 @@ def test_retry_delay_prefers_valid_retry_after() -> None:
 def test_retry_delay_uses_backoff_for_missing_or_invalid_header() -> None:
     assert retry_delay(None, 1, 2.0) == 4.0
     assert retry_delay(headers("later"), 1, 2.0) == 4.0
+    assert retry_delay({"Retry-After": "later"}, 1, 2.0) == 4.0
 
 
 def test_wait_before_retry_only_sleeps_for_retryable_attempts() -> None:

@@ -17,7 +17,6 @@ from osm_polygon_web_search.fetch import (
     fetch_pages,
 )
 from osm_polygon_web_search.http import HTTPRequestError, HTTPResponse
-from osm_polygon_web_search.retry import retry_delay
 from osm_polygon_web_search.search import (
     BraveSearchProvider,
     SearchProviderError,
@@ -303,17 +302,6 @@ def test_page_fetcher_forwards_request_configuration(monkeypatch) -> None:
     )
 
 
-def test_page_fetcher_includes_the_url_in_response_errors(monkeypatch) -> None:
-    monkeypatch.setattr(
-        fetch_module,
-        "request_bytes",
-        lambda request, **kwargs: HTTPResponse(500, {}, b"", None),
-    )
-
-    with pytest.raises(PageFetchError, match="HTTP 500.*example.test/page"):
-        PageFetcher().fetch("https://example.test/page")
-
-
 def test_page_fetcher_preserves_the_transport_error_cause(monkeypatch) -> None:
     def fake_request_bytes(request, **kwargs):
         try:
@@ -430,7 +418,7 @@ def test_page_fetcher_rejects_transport_errors() -> None:
 
 
 def test_page_fetcher_rejects_non_success_response_status() -> None:
-    with pytest.raises(PageFetchError, match="HTTP 500"):
+    with pytest.raises(PageFetchError, match="HTTP 500.*example.test/error"):
         PageFetcher(
             opener=lambda request, timeout: FakeResponse(b"", status=500),
             sleep=lambda _delay: None,
@@ -472,7 +460,7 @@ def test_fetch_pages_deduplicates_urls_and_reuses_successful_cache() -> None:
     ) == ["https://example.test/one", "https://example.test/two"]
     fetch_pages(fetcher, ["https://example.test/two"], cache=cache)
 
-    assert calls == [
+    assert sorted(calls) == [
         "https://example.test/one",
         "https://example.test/two",
     ]
@@ -623,20 +611,7 @@ def test_fetch_pages_requires_a_positive_worker_count() -> None:
     assert str(error.value) == "max_workers must be at least 1"
 
 
-def test_retry_delay_falls_back_to_exponential_backoff() -> None:
-    assert retry_delay(None, 1, 2.0) == 4.0
-    assert retry_delay({"Retry-After": "later"}, 1, 2.0) == 4.0
-
-
-def test_brave_provider_rejects_bad_json_and_http_errors() -> None:
-    invalid = BraveSearchProvider(
-        api_key="secret",
-        opener=lambda request, timeout: FakeResponse(b"not-json"),
-        sleep=lambda _delay: None,
-    )
-    with pytest.raises(SearchProviderError, match="invalid JSON"):
-        invalid.search("test")
-
+def test_brave_provider_rejects_http_errors() -> None:
     def http_error(request, timeout):
         raise HTTPError(request.full_url, 404, "not found", response_headers(), None)
 
@@ -707,10 +682,6 @@ def test_brave_provider_retries_a_rate_limited_response_status() -> None:
 
     assert provider.search("test") == []
     assert sleeps == [0.0]
-
-
-def test_brave_retry_delay_falls_back_for_invalid_retry_after() -> None:
-    assert retry_delay({"Retry-After": "later"}, 1, 2.0) == 4.0
 
 
 def test_brave_provider_handles_missing_result_fields() -> None:

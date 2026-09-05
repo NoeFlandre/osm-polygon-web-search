@@ -117,21 +117,20 @@ def test_docs_workflow_builds_and_deploys_pages() -> None:
 
 
 def test_ruff_enforces_the_crap_complexity_ceiling() -> None:
-    text = (ROOT / "pyproject.toml").read_text()
-    assert 'select = ["B", "C4", "C90", "E", "F", "I", "SIM", "UP"]' in text
-    assert "max-complexity = 5" in text
+    config = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    lint = config["tool"]["ruff"]["lint"]
+    assert "C90" in lint["select"]
+    assert lint["mccabe"]["max-complexity"] <= 5
+    assert config["tool"]["coverage"]["run"]["branch"] is True
+    assert config["tool"]["coverage"]["report"]["fail_under"] == 100
 
 
 def test_mutation_scope_covers_every_runtime_module() -> None:
     config = tomllib.loads((ROOT / "pyproject.toml").read_text())
-    configured = set(config["tool"]["mutmut"]["only_mutate"])
-    runtime_modules = {
-        path.relative_to(ROOT).as_posix()
-        for path in (ROOT / "src" / "osm_polygon_web_search").glob("*.py")
-        if path.name != "__init__.py"
-    }
-
-    assert runtime_modules <= configured
+    mutation = config["tool"]["mutmut"]
+    assert mutation["source_paths"] == ["src/osm_polygon_web_search/"]
+    assert not mutation.get("only_mutate")
+    assert not mutation.get("do_not_mutate")
 
 
 def test_dataset_card_matches_the_published_schema() -> None:

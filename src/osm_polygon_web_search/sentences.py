@@ -140,7 +140,6 @@ def _is_title_word(word: str) -> bool:
     letters = _WORD.search(word)
     return letters is not None and (
         letters.group(0).casefold() in _HEADING_STOPWORDS
-        or letters.group(0).isupper()
         or letters.group(0)[0].isupper()
     )
 
@@ -155,13 +154,9 @@ def _looks_like_heading(block: str) -> bool:
 
 
 def _looks_like_inline_heading(block: str) -> bool:
-    return _looks_like_heading(block) or _starts_with_any(
-        block.casefold(), _INLINE_HEADING_STARTS
+    return _looks_like_heading(block) or block.casefold().startswith(
+        _INLINE_HEADING_STARTS
     )
-
-
-def _starts_with_any(block: str, prefixes: tuple[str, ...]) -> bool:
-    return any(block.startswith(prefix) for prefix in prefixes)
 
 
 def _is_short_fragment(block: str) -> bool:
@@ -181,7 +176,7 @@ def _is_structural_noise(block: str) -> bool:
         or folded in _HEADING_TEXT
         or bool(_METADATA_FRAGMENT.match(block))
         or folded.endswith(" is a wikidata entity.")
-        or _starts_with_any(folded, _NON_CONTENT_PREFIXES)
+        or folded.startswith(_NON_CONTENT_PREFIXES)
         or bool(_DASH_HEADING.fullmatch(block))
         or _looks_like_heading(block)
         or _is_short_fragment(block)

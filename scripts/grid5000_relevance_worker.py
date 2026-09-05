@@ -13,7 +13,7 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
-from osm_polygon_web_search.grid5000_worker import run_worker
+from osm_polygon_web_search.grid5000_worker import DEFAULT_BATCH_SIZE, run_worker
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -24,7 +24,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--device", default="cuda")
-    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE)
     args = parser.parse_args(argv)
     count = run_worker(
         args.input,

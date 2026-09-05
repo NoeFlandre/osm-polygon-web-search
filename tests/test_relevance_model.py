@@ -33,7 +33,6 @@ class FakeBatch(dict):
 class FakeTokenizer:
     def __init__(self) -> None:
         self.chat_calls: list[tuple[list[list[dict[str, str]]], dict[str, object]]] = []
-        self.decode_calls: list[tuple[object, dict[str, object]]] = []
         self.batch = None
 
     def encode(self, text: str, *, add_special_tokens: bool) -> list[int]:
@@ -48,10 +47,6 @@ class FakeTokenizer:
         self.chat_calls.append((messages, kwargs))
         self.batch = FakeBatch(len(messages))
         return self.batch
-
-    def decode(self, tokens: object, **kwargs: object) -> str:
-        self.decode_calls.append((tokens, kwargs))
-        return "yes"
 
 
 class FakeScores:
@@ -86,18 +81,12 @@ class FakeModel:
     def __init__(self, scores: list[tuple[float, float]] | None = None) -> None:
         self.scores = scores
         self.forward_calls: list[dict[str, object]] = []
-        self.generate_calls: list[dict[str, object]] = []
 
     def __call__(self, **kwargs: object) -> SimpleNamespace:
         self.forward_calls.append(kwargs)
         batch_size = cast(FakeInputIds, kwargs["input_ids"]).shape[0]
         scores = self.scores or [(2.0, 1.0)] * batch_size
         return SimpleNamespace(logits=FakeLogits(scores[:batch_size]))
-
-    def generate(self, **kwargs: object) -> list[list[int]]:
-        self.generate_calls.append(kwargs)
-        batch_size = cast(FakeInputIds, kwargs["input_ids"]).shape[0]
-        return [[1, 2, 3, 4, 5, 6] for _ in range(batch_size)]
 
 
 class UnevenModel:
@@ -146,8 +135,6 @@ def test_classifier_applies_chat_template_and_scores_final_logits() -> None:
     assert model.forward_calls[0]["input_ids"] is tokenizer.batch["input_ids"]
     assert model.forward_calls[0]["logits_to_keep"] == 1
     assert model.forward_calls[0]["use_cache"] is False
-    assert model.generate_calls == []
-    assert tokenizer.decode_calls == []
 
 
 def test_classifier_classifies_a_batch_in_one_forward_pass() -> None:
@@ -175,7 +162,6 @@ def test_classifier_classifies_a_batch_in_one_forward_pass() -> None:
         ],
     ]
     assert len(model.forward_calls) == 1
-    assert model.generate_calls == []
 
 
 def test_classifier_resolves_equal_scores_to_no() -> None:
